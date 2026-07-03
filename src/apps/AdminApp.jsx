@@ -1,58 +1,21 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState } from "react";
 import {
-  LogOut, Lock, ShieldCheck, Fish, Waves, RefreshCcw, Ban, AlertTriangle,
-  Radio, Clock, Send, CheckCircle2, ChevronLeft, ChevronRight, ScrollText,
-  Eye, Mic, MapPin, Languages, Delete, UserRound, Megaphone, X, RotateCcw,
+  LogOut, Lock, ShieldCheck, Radio,
+  Send, CheckCircle2, ChevronRight, ScrollText,
+  Eye, Mic, MapPin, Languages, Delete, Megaphone, RotateCcw,
 } from "lucide-react";
+import { useBeachData } from "../store/BeachDataContext";
+import {
+  USERS, PRESETS, SEVERITY, FLAG_STATUS, LANGUAGES,
+  translateAlert, fmtTime, fmtClock,
+} from "../store/beachData";
 
 /* ============================================================================
-   MOCK BACKEND LAYER
-   In production these are real records behind an auth service and a database.
-   The shapes are kept realistic (role, assignment, timestamps, audit trail)
-   so this file only needs its data source swapped later, not its screens.
+   AdminApp now reads/writes the SAME state as TouristApp via useBeachData().
+   Publishing an alert here updates the shared alerts list and beach flag
+   status immediately — the "Public View" tab and the actual tourist app
+   both reflect it instantly, no refresh needed.
    ============================================================================ */
-
-// FUTURE: replace with real auth (SSO / org login), PINs are a tablet-speed stand-in
-const USERS = [
-  { id: "u1", name: "Sarah Chen", pin: "1234", role: "Lifesaver", assignedBeachIds: ["bondi"] },
-  { id: "u2", name: "Jake Wilson", pin: "2345", role: "Lifesaver", assignedBeachIds: ["manly"] },
-  { id: "u3", name: "Priya Nair", pin: "3456", role: "Patrol Supervisor", assignedBeachIds: ["bondi", "manly", "stkilda"] },
-];
-
-const INITIAL_BEACHES = [
-  { id: "bondi", name: "Bondi Beach", state: "NSW", flagStatus: "patrolled" },
-  { id: "manly", name: "Manly Beach", state: "NSW", flagStatus: "caution" },
-  { id: "stkilda", name: "St Kilda Beach", state: "VIC", flagStatus: "patrolled" },
-];
-
-const PRESETS = [
-  { key: "shark", label: "Shark Sighting", icon: Fish, severity: "danger", expiryMin: 60,
-    text: "Shark sighted in the water. All swimmers must exit immediately and stay clear of the water." },
-  { key: "swell", label: "Dangerous Swell", icon: Waves, severity: "caution", expiryMin: 120,
-    text: "Dangerous swell conditions. Large waves and strong swell — swim with extra caution." },
-  { key: "rip", label: "Rip Current Change", icon: RefreshCcw, severity: "caution", expiryMin: 90,
-    text: "Rip current conditions have changed. Check flag positions before entering the water." },
-  { key: "closure", label: "Beach Closure", icon: Ban, severity: "closure", expiryMin: 240,
-    text: "Beach closed to swimmers until further notice. Please leave the water now." },
-  { key: "hazard", label: "General Hazard", icon: AlertTriangle, severity: "caution", expiryMin: 60,
-    text: "Hazard reported on the beach. Please follow lifeguard instructions." },
-];
-
-const SEVERITY = {
-  info: { label: "Info", bg: "bg-blue-600", soft: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700" },
-  caution: { label: "Caution", bg: "bg-amber-500", soft: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700" },
-  danger: { label: "Danger", bg: "bg-red-600", soft: "bg-red-50", ring: "ring-red-200", text: "text-red-700" },
-  closure: { label: "Closure", bg: "bg-slate-900", soft: "bg-slate-100", ring: "ring-slate-300", text: "text-slate-800" },
-};
-
-// severity -> effect on the public flag status
-const SEVERITY_FLAG_EFFECT = { danger: "closed", closure: "closed", caution: "caution", info: null };
-
-const FLAG_STATUS = {
-  patrolled: { label: "Patrolled", flagColors: ["bg-red-600", "bg-yellow-400"], text: "text-emerald-700", bg: "bg-emerald-50" },
-  caution: { label: "Caution", flagColors: ["bg-red-600", "bg-yellow-400"], text: "text-amber-700", bg: "bg-amber-50" },
-  closed: { label: "Closed", flagColors: ["bg-red-600", "bg-red-600"], text: "text-red-700", bg: "bg-red-50" },
-};
 
 function FlagIcon({ status }) {
   const cfg = FLAG_STATUS[status];
@@ -64,55 +27,7 @@ function FlagIcon({ status }) {
   );
 }
 
-// FUTURE: swap for a real translation API — kept keyed by preset so custom
-// edits fall back gracefully, same pattern as the public tourist app.
-const LANGUAGES = [
-  { code: "en", label: "English" }, { code: "zh", label: "中文" }, { code: "ja", label: "日本語" },
-  { code: "es", label: "Español" }, { code: "fr", label: "Français" },
-];
-
-const PRESET_TRANSLATIONS = {
-  shark: {
-    zh: "水域中发现鲨鱼。所有游泳者请立即离开水域并远离该区域。",
-    ja: "海中でサメが目撃されました。遊泳者は直ちに海から出て離れてください。",
-    es: "Se ha avistado un tiburón en el agua. Todos los bañistas deben salir de inmediato.",
-    fr: "Un requin a été aperçu. Tous les baigneurs doivent sortir de l'eau immédiatement.",
-  },
-  swell: {
-    zh: "涌浪危险。浪大流急，请谨慎游泳。",
-    es: "Condiciones de oleaje peligrosas. Nade con precaución adicional.",
-  },
-  rip: {
-    zh: "离岸流情况已改变。下水前请查看旗帜位置。",
-    ja: "離岸流の状況が変化しました。入水前に旗の位置を確認してください。",
-  },
-  closure: {
-    zh: "沙滩暂时关闭，禁止游泳，请立即离开水域。",
-    fr: "Plage fermée à la baignade jusqu'à nouvel ordre. Merci de sortir de l'eau.",
-  },
-  hazard: {
-    es: "Se ha reportado un peligro en la playa. Siga las instrucciones del socorrista.",
-  },
-};
-
-function translateAlert(alert, langCode) {
-  if (langCode === "en") return { text: alert.text, isFallback: false };
-  const isUnedited = PRESETS.find((p) => p.key === alert.presetKey)?.text === alert.text;
-  const dict = PRESET_TRANSLATIONS[alert.presetKey];
-  if (isUnedited && dict && dict[langCode]) return { text: dict[langCode], isFallback: false };
-  return { text: alert.text, isFallback: true };
-}
-
-function fmtTime(ts) {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-function fmtClock(ts) {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
-
-/* ============================================================================
-   LOGIN — staff picker + PIN pad. Built for a shared tablet at the tower.
-   ============================================================================ */
+/* ---- Login ---- */
 
 function LoginScreen({ onPicked }) {
   return (
@@ -189,9 +104,7 @@ function PinScreen({ user, onSuccess, onCancel }) {
   );
 }
 
-/* ============================================================================
-   BEACH SELECTOR — only beaches assigned to the signed-in user
-   ============================================================================ */
+/* ---- Beach selector ---- */
 
 function BeachSelectScreen({ user, beaches, onPick, onLogout }) {
   const assigned = beaches.filter((b) => user.assignedBeachIds.includes(b.id));
@@ -228,11 +141,9 @@ function BeachSelectScreen({ user, beaches, onPick, onLogout }) {
   );
 }
 
-/* ============================================================================
-   CONTROL ROOM — composer / audit log / public preview, tablet layout
-   ============================================================================ */
+/* ---- Control room ---- */
 
-function ControlRoom({ user, beach, allBeaches, alerts, auditLog, live, onPublish, onResolve, onToggleLive, onSwitchBeach, onLogout }) {
+function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, onPublish, onResolve, onToggleLive, onSwitchBeach, onLogout }) {
   const [tab, setTab] = useState("composer");
   const canSwitch = user.assignedBeachIds.length > 1;
 
@@ -244,7 +155,6 @@ function ControlRoom({ user, beach, allBeaches, alerts, auditLog, live, onPublis
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar — built for landscape tablet use */}
       <div className="w-56 bg-blue-950 text-white flex flex-col shrink-0">
         <div className="p-4 border-b border-blue-900">
           <div className="flex items-center gap-2 mb-1">
@@ -280,13 +190,12 @@ function ControlRoom({ user, beach, allBeaches, alerts, auditLog, live, onPublis
         </button>
       </div>
 
-      {/* Main panel */}
       <div className="flex-1 min-w-0">
         {tab === "composer" && (
-          <ComposerPanel beach={beach} alerts={alerts} live={live} onPublish={onPublish} onResolve={onResolve} onToggleLive={onToggleLive} />
+          <ComposerPanel beach={beach} activeAlerts={activeAlerts} live={live} onPublish={onPublish} onResolve={onResolve} onToggleLive={onToggleLive} />
         )}
         {tab === "log" && <AuditLogPanel auditLog={auditLog} beaches={allBeaches} />}
-        {tab === "public" && <PublicViewPanel beach={beach} alerts={alerts} live={live} />}
+        {tab === "public" && <PublicViewPanel beach={beach} activeAlerts={activeAlerts} live={live} />}
       </div>
     </div>
   );
@@ -294,14 +203,12 @@ function ControlRoom({ user, beach, allBeaches, alerts, auditLog, live, onPublis
 
 /* ---- Composer ---- */
 
-function ComposerPanel({ beach, alerts, live, onPublish, onResolve, onToggleLive }) {
+function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onToggleLive }) {
   const [presetKey, setPresetKey] = useState(null);
   const [text, setText] = useState("");
   const [severity, setSeverity] = useState("caution");
   const [expiryMin, setExpiryMin] = useState(60);
   const [confirmed, setConfirmed] = useState(false);
-
-  const activeAlerts = alerts.filter((a) => a.beachId === beach.id && !a.resolved && a.expiresAt > Date.now());
 
   function pickPreset(p) {
     setPresetKey(p.key);
@@ -338,7 +245,7 @@ function ComposerPanel({ beach, alerts, live, onPublish, onResolve, onToggleLive
 
       {live?.isLive && (
         <div className="bg-red-600 text-white rounded-xl px-4 py-2.5 mb-5 flex items-center gap-2 text-sm font-bold">
-          <Radio className="w-4 h-4" /> ON AIR — broadcasting live since {fmtTime(live.startedAt)}
+          <Radio className="w-4 h-4" /> ON AIR — broadcasting live since {fmtTime(live.startedAt)} · visible now in the tourist app
         </div>
       )}
 
@@ -431,7 +338,7 @@ function ComposerPanel({ beach, alerts, live, onPublish, onResolve, onToggleLive
   );
 }
 
-/* ---- Audit Log ---- */
+/* ---- Audit log ---- */
 
 function AuditLogPanel({ auditLog, beaches }) {
   const beachName = (id) => beaches.find((b) => b.id === id)?.name || id;
@@ -463,12 +370,10 @@ function AuditLogPanel({ auditLog, beaches }) {
   );
 }
 
-/* ---- Public View preview (what tourists see, live) ---- */
+/* ---- Public view preview ---- */
 
-function PublicViewPanel({ beach, alerts, live }) {
+function PublicViewPanel({ beach, activeAlerts, live }) {
   const [lang, setLang] = useState("en");
-  const active = alerts.filter((a) => a.beachId === beach.id && !a.resolved && a.expiresAt > Date.now())
-    .sort((a, b) => b.createdAt - a.createdAt);
   const cfg = FLAG_STATUS[beach.flagStatus];
 
   return (
@@ -502,12 +407,12 @@ function PublicViewPanel({ beach, alerts, live }) {
         )}
 
         <div className="p-5 space-y-3">
-          {active.length === 0 && (
+          {activeAlerts.length === 0 && (
             <div className="flex items-center gap-2 text-slate-400 text-sm">
               <MapPin className="w-4 h-4" /> No active alerts right now.
             </div>
           )}
-          {active.map((a) => {
+          {activeAlerts.map((a) => {
             const sv = SEVERITY[a.severity];
             const { text, isFallback } = translateAlert(a, lang);
             return (
@@ -529,53 +434,15 @@ function PublicViewPanel({ beach, alerts, live }) {
   );
 }
 
-/* ============================================================================
-   ROOT APP
-   ============================================================================ */
+/* ---- Root ---- */
 
 export default function AdminApp() {
+  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, activeAlertsForBeach } = useBeachData();
+
   const [screen, setScreen] = useState("login"); // login | pin | beachSelect | room
   const [pendingUser, setPendingUser] = useState(null);
   const [user, setUser] = useState(null);
-  const [beaches, setBeaches] = useState(INITIAL_BEACHES);
   const [currentBeachId, setCurrentBeachId] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [auditLog, setAuditLog] = useState([]);
-  const [liveByBeach, setLiveByBeach] = useState({});
-  const [, forceTick] = useState(0);
-
-  // re-render periodically so expiry countdowns / expired states stay accurate
-  useEffect(() => {
-    const t = setInterval(() => forceTick((n) => n + 1), 15000);
-    return () => clearInterval(t);
-  }, []);
-
-  function logEvent(entry) {
-    setAuditLog((log) => [{ id: `e${Date.now()}${Math.random()}`, at: Date.now(), ...entry }, ...log]);
-  }
-
-  function handlePublish({ beachId, presetKey, text, severity, expiryMin }) {
-    const now = Date.now();
-    const alert = { id: `a${now}`, beachId, presetKey, text, severity, createdAt: now, expiresAt: now + expiryMin * 60000, resolved: false, publishedBy: user.name };
-    setAlerts((a) => [alert, ...a]);
-    const effect = SEVERITY_FLAG_EFFECT[severity];
-    if (effect) setBeaches((bs) => bs.map((b) => (b.id === beachId ? { ...b, flagStatus: effect } : b)));
-    logEvent({ type: "publish", actor: user.name, beachId, summary: `published a ${SEVERITY[severity].label.toLowerCase()} alert`, detail: text });
-  }
-
-  function handleResolve(alertId) {
-    setAlerts((a) => a.map((x) => (x.id === alertId ? { ...x, resolved: true } : x)));
-    const alert = alerts.find((a) => a.id === alertId);
-    if (alert) logEvent({ type: "resolve", actor: user.name, beachId: alert.beachId, summary: "resolved an alert", detail: alert.text });
-  }
-
-  function handleToggleLive(beachId) {
-    setLiveByBeach((m) => {
-      const isLive = !m[beachId]?.isLive;
-      logEvent({ type: isLive ? "broadcast_start" : "broadcast_end", actor: user.name, beachId, summary: isLive ? "started a live broadcast" : "ended the live broadcast" });
-      return { ...m, [beachId]: isLive ? { isLive: true, startedAt: Date.now() } : { isLive: false } };
-    });
-  }
 
   function logout() {
     setUser(null); setPendingUser(null); setCurrentBeachId(null); setScreen("login");
@@ -619,12 +486,12 @@ export default function AdminApp() {
           user={user}
           beach={currentBeach}
           allBeaches={beaches}
-          alerts={alerts}
           auditLog={auditLog}
           live={liveByBeach[currentBeach.id]}
-          onPublish={handlePublish}
-          onResolve={handleResolve}
-          onToggleLive={handleToggleLive}
+          activeAlerts={activeAlertsForBeach(currentBeach.id)}
+          onPublish={(payload) => publishAlert({ ...payload, actor: user.name })}
+          onResolve={(alertId) => resolveAlert(alertId, user.name)}
+          onToggleLive={(beachId) => toggleLive(beachId, user.name)}
           onSwitchBeach={() => setScreen("beachSelect")}
           onLogout={logout}
         />

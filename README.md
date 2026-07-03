@@ -14,6 +14,15 @@ purposes only. In a real deployment these would likely be two separate
 apps (e.g. a public tourist app and a locked-down admin app) sharing one
 backend API.
 
+**They're connected.** Both apps read and write the same data through
+`src/store/BeachDataContext.jsx`. Publish an alert in the admin composer
+and it appears immediately in the tourist app's live broadcast screen —
+same beach flag status, same active alerts, same live-broadcast indicator.
+Switch to "Tourist App" in the top switcher after publishing an alert as
+an admin to see it live. Note this sync currently only works within one
+browser tab/session, since it's plain React state — see `FUTURE:` notes
+in `BeachDataContext.jsx` for what a real backend swap looks like.
+
 ## Status: MVP / prototype
 
 All data is currently mocked in-memory (see the `MOCK DATA` / `MOCK BACKEND`

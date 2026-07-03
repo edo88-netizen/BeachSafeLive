@@ -4,198 +4,14 @@ import {
   Wind, Thermometer, Sun, Clock, Megaphone, ShieldAlert, CheckCircle2,
   Circle, ChevronRight, Volume2, Navigation, Users, Info
 } from "lucide-react";
+import { useBeachData } from "../store/BeachDataContext";
+import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime } from "../store/beachData";
 
 /* ============================================================================
-   MOCK DATA LAYER
-   Everything below is sample data standing in for real feeds. Each block is
-   shaped the way a real API response would be, so swapping in a live feed
-   later just means replacing the fetch, not the components that consume it.
+   This app now reads live data from BeachDataContext (shared with AdminApp)
+   instead of its own local mock copy. Anything a lifesaver publishes in the
+   admin composer appears here automatically — same state tree, no refresh.
    ============================================================================ */
-
-// FUTURE: replace with GPS-based sort (navigator.geolocation + distance calc)
-const BEACHES = [
-  {
-    id: "bondi",
-    name: "Bondi Beach",
-    state: "NSW",
-    distanceKm: 1.2,
-    patrolled: true,
-    flagStatus: "patrolled", // patrolled | caution | closed | unpatrolled
-    hazards: ["Rip currents near rocks (south end)", "Strong shore break at high tide"],
-    conditions: { waveHeightM: 1.2, waterTempC: 21, uvIndex: 9, windKmh: 18, windDir: "NE" },
-    patrolHours: "7:00 AM – 6:00 PM",
-    lifeguardsOnDuty: 6,
-    lastUpdated: "2 min ago",
-  },
-  {
-    id: "manly",
-    name: "Manly Beach",
-    state: "NSW",
-    distanceKm: 3.8,
-    patrolled: true,
-    flagStatus: "caution",
-    hazards: ["Increased rip activity", "Bluebottles reported"],
-    conditions: { waveHeightM: 1.5, waterTempC: 20, uvIndex: 8, windKmh: 24, windDir: "E" },
-    patrolHours: "7:00 AM – 6:00 PM",
-    lifeguardsOnDuty: 4,
-    lastUpdated: "5 min ago",
-  },
-  {
-    id: "stkilda",
-    name: "St Kilda Beach",
-    state: "VIC",
-    distanceKm: 9.4,
-    patrolled: true,
-    flagStatus: "patrolled",
-    hazards: ["Boat traffic near pier"],
-    conditions: { waveHeightM: 0.4, waterTempC: 17, uvIndex: 6, windKmh: 14, windDir: "S" },
-    patrolHours: "10:30 AM – 5:00 PM",
-    lifeguardsOnDuty: 3,
-    lastUpdated: "1 min ago",
-  },
-  {
-    id: "cottesloe",
-    name: "Cottesloe Beach",
-    state: "WA",
-    distanceKm: 14.7,
-    patrolled: false,
-    flagStatus: "unpatrolled",
-    hazards: ["No lifeguards outside patrol season"],
-    conditions: { waveHeightM: 0.8, waterTempC: 19, uvIndex: 7, windKmh: 20, windDir: "SW" },
-    patrolHours: "Not patrolled today",
-    lifeguardsOnDuty: 0,
-    lastUpdated: "18 min ago",
-  },
-  {
-    id: "surfers",
-    name: "Surfers Paradise",
-    state: "QLD",
-    distanceKm: 22.1,
-    patrolled: true,
-    flagStatus: "closed",
-    hazards: ["Dangerous surf — beach closed to swimmers", "Lightning risk"],
-    conditions: { waveHeightM: 2.4, waterTempC: 24, uvIndex: 10, windKmh: 32, windDir: "NE" },
-    patrolHours: "7:00 AM – 6:00 PM",
-    lifeguardsOnDuty: 8,
-    lastUpdated: "Just now",
-  },
-];
-
-// FUTURE: replace with a live websocket / push feed from the lifeguard tower
-const LIVE_MESSAGES = [
-  {
-    id: 1,
-    time: "10:42 AM",
-    level: "danger",
-    text: "Strong rip current forming at the southern flag. Please swim between the flags only.",
-  },
-  {
-    id: 2,
-    time: "10:31 AM",
-    level: "info",
-    text: "UV index is extreme. Reapply sunscreen and seek shade between 11am and 3pm.",
-  },
-  {
-    id: 3,
-    time: "10:15 AM",
-    level: "warning",
-    text: "Bluebottle jellyfish sighted near the northern rocks. Avoid that area.",
-  },
-  {
-    id: 4,
-    time: "9:58 AM",
-    level: "info",
-    text: "Good morning! Flags are up and lifeguards are on patrol until 6pm today.",
-  },
-];
-
-// FUTURE: swap for a real translation API (e.g. server-side call). Structure
-// is kept so only this lookup needs to change — components stay the same.
-const LANGUAGES = [
-  { code: "en", label: "English", native: "English" },
-  { code: "zh", label: "Chinese", native: "中文" },
-  { code: "ja", label: "Japanese", native: "日本語" },
-  { code: "ko", label: "Korean", native: "한국어" },
-  { code: "es", label: "Spanish", native: "Español" },
-  { code: "fr", label: "French", native: "Français" },
-  { code: "de", label: "German", native: "Deutsch" },
-  { code: "hi", label: "Hindi", native: "हिन्दी" },
-];
-
-const TRANSLATIONS = {
-  "Strong rip current forming at the southern flag. Please swim between the flags only.": {
-    zh: "南侧旗帜附近正在形成强烈离岸流。请仅在两旗之间游泳。",
-    ja: "南側の旗の近くで強い離岸流が発生しています。旗の間でのみ泳いでください。",
-    ko: "남쪽 깃발 근처에 강한 이안류가 형성되고 있습니다. 깃발 사이에서만 수영하세요.",
-    es: "Se está formando una fuerte corriente de resaca junto a la bandera sur. Nade solo entre las banderas.",
-    fr: "Un fort courant d'arrachement se forme près du drapeau sud. Nagez uniquement entre les drapeaux.",
-    de: "Am südlichen Fahnenposten bildet sich eine starke Rückströmung. Schwimmen Sie nur zwischen den Fahnen.",
-  },
-  "UV index is extreme. Reapply sunscreen and seek shade between 11am and 3pm.": {
-    zh: "紫外线指数极高。请补涂防晒霜，并在上午11点至下午3点间寻找阴凉处。",
-    es: "El índice UV es extremo. Vuelva a aplicarse protector solar y busque sombra entre las 11am y las 3pm.",
-    fr: "L'indice UV est extrême. Réappliquez de la crème solaire et cherchez de l'ombre entre 11h et 15h.",
-  },
-  "Bluebottle jellyfish sighted near the northern rocks. Avoid that area.": {
-    zh: "在北侧岩石附近发现僧帽水母。请避开该区域。",
-    ja: "北側の岩場付近でカツオノエボシが目撃されました。その区域を避けてください。",
-  },
-  "Good morning! Flags are up and lifeguards are on patrol until 6pm today.": {
-    zh: "早上好！旗帜已升起，救生员今天巡逻至下午6点。",
-    es: "¡Buenos días! Las banderas están izadas y los socorristas patrullan hasta las 6pm hoy.",
-  },
-};
-
-function translate(text, langCode) {
-  if (langCode === "en") return { text, isFallback: false };
-  const entry = TRANSLATIONS[text];
-  if (entry && entry[langCode]) return { text: entry[langCode], isFallback: false };
-  return { text, isFallback: true }; // FUTURE: real API would rarely hit this
-}
-
-/* ============================================================================
-   FLAG STATUS CONFIG — the surf-lifesaving flag system, the core safety
-   signal used throughout the app.
-   ============================================================================ */
-
-const FLAG_STATUS = {
-  patrolled: {
-    label: "Patrolled — swim between the flags",
-    short: "Safe to swim",
-    ring: "ring-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    dot: "bg-emerald-500",
-    flagColors: ["bg-red-600", "bg-yellow-400"],
-  },
-  caution: {
-    label: "Patrolled — caution advised",
-    short: "Swim with caution",
-    ring: "ring-amber-500",
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    dot: "bg-amber-500",
-    flagColors: ["bg-red-600", "bg-yellow-400"],
-  },
-  closed: {
-    label: "Beach closed — no swimming",
-    short: "Closed to swimmers",
-    ring: "ring-red-600",
-    bg: "bg-red-50",
-    text: "text-red-700",
-    dot: "bg-red-600",
-    flagColors: ["bg-red-600", "bg-red-600"],
-  },
-  unpatrolled: {
-    label: "Unpatrolled — no lifeguards on duty",
-    short: "No lifeguards",
-    ring: "ring-slate-400",
-    bg: "bg-slate-100",
-    text: "text-slate-600",
-    dot: "bg-slate-400",
-    flagColors: ["bg-slate-300", "bg-slate-300"],
-  },
-};
 
 function FlagIcon({ status, size = "md" }) {
   const cfg = FLAG_STATUS[status];
@@ -207,10 +23,6 @@ function FlagIcon({ status, size = "md" }) {
     </div>
   );
 }
-
-/* ============================================================================
-   SHARED UI PIECES
-   ============================================================================ */
 
 function StatusPill({ status }) {
   const cfg = FLAG_STATUS[status];
@@ -277,9 +89,7 @@ function SOSButton({ onClick }) {
   );
 }
 
-/* ============================================================================
-   HOME SCREEN — beach list, nearest first
-   ============================================================================ */
+/* ---- Home ---- */
 
 function HomeScreen({ beaches, onSelectBeach, language }) {
   const sorted = [...beaches].sort((a, b) => a.distanceKm - b.distanceKm);
@@ -315,7 +125,6 @@ function HomeScreen({ beaches, onSelectBeach, language }) {
         </div>
       </div>
 
-      {/* Nearest beach highlight */}
       <div className="px-4 mt-4">
         <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Nearest to you</p>
         <button
@@ -333,7 +142,6 @@ function HomeScreen({ beaches, onSelectBeach, language }) {
         </button>
       </div>
 
-      {/* Full list */}
       <div className="px-4 mt-6">
         <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">All patrolled beaches</p>
         <div className="space-y-2">
@@ -359,9 +167,7 @@ function HomeScreen({ beaches, onSelectBeach, language }) {
   );
 }
 
-/* ============================================================================
-   BEACH DETAIL SCREEN
-   ============================================================================ */
+/* ---- Beach detail ---- */
 
 function BeachDetailScreen({ beach, onBack, onGoLive }) {
   const cfg = FLAG_STATUS[beach.flagStatus];
@@ -369,11 +175,11 @@ function BeachDetailScreen({ beach, onBack, onGoLive }) {
     <div className="pb-24">
       <TopBar title={beach.name} onBack={onBack} />
 
-      <div className={`mx-4 mt-4 rounded-2xl p-5 ${cfg.bg} ring-1 ${cfg.ring}`}>
+      <div className={`mx-4 mt-4 rounded-2xl p-5 ${cfg.bg}`}>
         <div className="flex items-center gap-3">
           <FlagIcon status={beach.flagStatus} size="lg" />
           <div>
-            <p className={`font-bold text-lg ${cfg.text}`}>{cfg.label}</p>
+            <p className={`font-bold text-lg ${cfg.text}`}>{cfg.label} {beach.adminManaged ? "" : "(unpatrolled beach)"}</p>
             <p className="text-xs text-slate-500 mt-0.5">Updated {beach.lastUpdated}</p>
           </div>
         </div>
@@ -414,7 +220,7 @@ function BeachDetailScreen({ beach, onBack, onGoLive }) {
 
       {beach.hazards.length > 0 && (
         <div className="px-4 mt-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Current hazards</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Known hazards</p>
           <div className="bg-white rounded-xl ring-1 ring-slate-100 divide-y divide-slate-100">
             {beach.hazards.map((h, i) => (
               <div key={i} className="flex items-start gap-2 p-3">
@@ -431,24 +237,23 @@ function BeachDetailScreen({ beach, onBack, onGoLive }) {
           onClick={onGoLive}
           className="w-full bg-blue-800 text-white rounded-xl py-3.5 font-bold flex items-center justify-center gap-2 active:bg-blue-900"
         >
-          <Megaphone className="w-5 h-5" /> Listen to live lifeguard updates
+          <Megaphone className="w-5 h-5" /> Live lifeguard alerts & broadcast
         </button>
       </div>
     </div>
   );
 }
 
-/* ============================================================================
-   LIVE BROADCAST SCREEN
-   ============================================================================ */
+/* ---- Live broadcast — now driven by real published alerts ---- */
 
 const LEVEL_STYLES = {
-  danger: { bg: "bg-red-50", ring: "ring-red-200", text: "text-red-700", icon: AlertTriangle },
-  warning: { bg: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700", icon: AlertTriangle },
-  info: { bg: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700", icon: Info },
+  danger: { bg: "bg-red-50", ring: "ring-red-200", text: "text-red-700", icon: AlertTriangle, label: "danger" },
+  closure: { bg: "bg-slate-100", ring: "ring-slate-300", text: "text-slate-800", icon: AlertTriangle, label: "closure" },
+  caution: { bg: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700", icon: AlertTriangle, label: "caution" },
+  info: { bg: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700", icon: Info, label: "info" },
 };
 
-function LiveBroadcastScreen({ beach, messages, language, onBack }) {
+function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, onBack }) {
   const [pulse, setPulse] = useState(true);
   useEffect(() => {
     const t = setInterval(() => setPulse((p) => !p), 1000);
@@ -461,10 +266,12 @@ function LiveBroadcastScreen({ beach, messages, language, onBack }) {
         title={beach ? `${beach.name} · Live` : "Live broadcast"}
         onBack={onBack}
         right={
-          <div className="flex items-center gap-1.5 bg-red-600 rounded-full px-2.5 py-1 text-xs font-bold">
-            <span className={`w-1.5 h-1.5 rounded-full bg-white ${pulse ? "opacity-100" : "opacity-30"}`} />
-            LIVE
-          </div>
+          isLive ? (
+            <div className="flex items-center gap-1.5 bg-red-600 rounded-full px-2.5 py-1 text-xs font-bold">
+              <span className={`w-1.5 h-1.5 rounded-full bg-white ${pulse ? "opacity-100" : "opacity-30"}`} />
+              LIVE
+            </div>
+          ) : null
         }
       />
 
@@ -472,24 +279,30 @@ function LiveBroadcastScreen({ beach, messages, language, onBack }) {
         <div className="bg-blue-900 text-white rounded-xl p-3.5 flex items-center gap-3">
           <Volume2 className="w-5 h-5 shrink-0" />
           <p className="text-sm leading-snug">
-            Announcements from the lifeguard tower appear here in real time, translated into{" "}
-            <span className="font-semibold">{LANGUAGES.find((l) => l.code === language)?.label}</span>.
+            {isLive
+              ? <>The lifeguard tower is broadcasting live now, started {fmtTime(liveStartedAt)}. Alerts below are translated into <span className="font-semibold">{LANGUAGES.find((l) => l.code === language)?.label}</span>.</>
+              : <>No live broadcast right now. Alerts published by lifeguards still appear below, translated into <span className="font-semibold">{LANGUAGES.find((l) => l.code === language)?.label}</span>.</>}
           </p>
         </div>
       </div>
 
       <div className="px-4 mt-4 space-y-3">
-        {messages.map((m) => {
-          const style = LEVEL_STYLES[m.level];
+        {alerts.length === 0 && (
+          <div className="flex items-center gap-2 text-slate-400 text-sm py-6 justify-center">
+            <MapPin className="w-4 h-4" /> No active alerts for this beach right now.
+          </div>
+        )}
+        {alerts.map((a) => {
+          const style = LEVEL_STYLES[a.severity] || LEVEL_STYLES.info;
           const Icon = style.icon;
-          const { text, isFallback } = translate(m.text, language);
+          const { text, isFallback } = translateAlert(a, language);
           return (
-            <div key={m.id} className={`rounded-xl p-3.5 ring-1 ${style.bg} ${style.ring}`}>
+            <div key={a.id} className={`rounded-xl p-3.5 ring-1 ${style.bg} ${style.ring}`}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className={`flex items-center gap-1.5 text-xs font-bold uppercase ${style.text}`}>
-                  <Icon className="w-3.5 h-3.5" /> {m.level}
+                  <Icon className="w-3.5 h-3.5" /> {style.label}
                 </div>
-                <span className="text-xs text-slate-400">{m.time}</span>
+                <span className="text-xs text-slate-400">{fmtTime(a.createdAt)}</span>
               </div>
               <p className="text-slate-800 text-sm leading-relaxed">{text}</p>
               {isFallback && (
@@ -505,13 +318,12 @@ function LiveBroadcastScreen({ beach, messages, language, onBack }) {
   );
 }
 
-/* ============================================================================
-   LANGUAGE SCREEN
-   ============================================================================ */
+/* ---- Language ---- */
 
 function LanguageScreen({ language, setLanguage }) {
-  const sample = "Strong rip current forming at the southern flag. Please swim between the flags only.";
-  const preview = translate(sample, language);
+  const samplePreset = PRESETS.find((p) => p.key === "shark");
+  const sampleAlert = { presetKey: samplePreset.key, text: samplePreset.text };
+  const preview = translateAlert(sampleAlert, language);
 
   return (
     <div className="pb-24">
@@ -558,9 +370,7 @@ function LanguageScreen({ language, setLanguage }) {
   );
 }
 
-/* ============================================================================
-   EMERGENCY SCREEN
-   ============================================================================ */
+/* ---- Emergency ---- */
 
 function EmergencyScreen({ beach, onBack }) {
   const [alerted, setAlerted] = useState(false);
@@ -617,17 +427,16 @@ function EmergencyScreen({ beach, onBack }) {
   );
 }
 
-/* ============================================================================
-   ROOT APP
-   ============================================================================ */
+/* ---- Root ---- */
 
 export default function TouristApp() {
-  const [screen, setScreen] = useState("home"); // home | detail | live | language | emergency
+  const { beaches, liveByBeach, activeAlertsForBeach } = useBeachData();
+  const [screen, setScreen] = useState("home");
   const [previousScreen, setPreviousScreen] = useState("home");
   const [selectedBeachId, setSelectedBeachId] = useState(null);
   const [language, setLanguage] = useState("en");
 
-  const selectedBeach = BEACHES.find((b) => b.id === selectedBeachId) || null;
+  const selectedBeach = beaches.find((b) => b.id === selectedBeachId) || null;
 
   function goTo(next, opts = {}) {
     setPreviousScreen(screen);
@@ -639,7 +448,7 @@ export default function TouristApp() {
     <div className="max-w-md mx-auto min-h-screen bg-slate-50 font-sans relative">
       {screen === "home" && (
         <HomeScreen
-          beaches={BEACHES}
+          beaches={beaches}
           language={language}
           onSelectBeach={(id) => goTo("detail", { beachId: id })}
         />
@@ -656,7 +465,9 @@ export default function TouristApp() {
       {screen === "live" && (
         <LiveBroadcastScreen
           beach={selectedBeach}
-          messages={LIVE_MESSAGES}
+          alerts={selectedBeach ? activeAlertsForBeach(selectedBeach.id) : []}
+          isLive={!!(selectedBeach && liveByBeach[selectedBeach.id]?.isLive)}
+          liveStartedAt={selectedBeach ? liveByBeach[selectedBeach.id]?.startedAt : null}
           language={language}
           onBack={() => goTo(previousScreen === "live" ? "home" : previousScreen)}
         />
