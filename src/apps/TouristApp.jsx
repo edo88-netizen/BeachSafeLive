@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   MapPin, Waves, Radio, Languages, AlertTriangle, Phone, ChevronLeft,
   Wind, Thermometer, Sun, Clock, Megaphone, ShieldAlert, CheckCircle2,
-  Circle, ChevronRight, Volume2, Navigation, Users, Info
+  Circle, ChevronRight, Volume2, Navigation, Users, Info, Bell, BellRing, BellOff, X
 } from "lucide-react";
 import { useBeachData } from "../store/BeachDataContext";
 import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime, calculateDistanceKm } from "../store/beachData";
@@ -13,6 +13,17 @@ import { useGeolocation } from "../hooks/useGeolocation";
    instead of its own local mock copy. Anything a lifesaver publishes in the
    admin composer appears here automatically — same state tree, no refresh.
    ============================================================================ */
+
+// Shared by HomeScreen (sorting) and the push-notification targeting logic
+// below, so "nearest beach" always means the same thing everywhere.
+function withLiveDistance(beaches, geo) {
+  return beaches.map((b) => {
+    if (geo.status === "granted" && geo.coords) {
+      return { ...b, liveDistanceKm: calculateDistanceKm(geo.coords.lat, geo.coords.lng, b.lat, b.lng), isLive: true };
+    }
+    return { ...b, liveDistanceKm: b.distanceKm, isLive: false };
+  });
+}
 
 function FlagIcon({ status, size = "md" }) {
   const cfg = FLAG_STATUS[status];
@@ -126,13 +137,8 @@ function LocationBanner({ geo }) {
   );
 }
 
-function HomeScreen({ beaches, onSelectBeach, language, geo }) {
-  const beachesWithDistance = beaches.map((b) => {
-    if (geo.status === "granted" && geo.coords) {
-      return { ...b, liveDistanceKm: calculateDistanceKm(geo.coords.lat, geo.coords.lng, b.lat, b.lng), isLive: true };
-    }
-    return { ...b, liveDistanceKm: b.distanceKm, isLive: false };
-  });
+function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications, notifyEnabled }) {
+  const beachesWithDistance = withLiveDistance(beaches, geo);
   const sorted = [...beachesWithDistance].sort((a, b) => a.liveDistanceKm - b.liveDistanceKm);
   const nearest = sorted[0];
 
@@ -141,9 +147,19 @@ function HomeScreen({ beaches, onSelectBeach, language, geo }) {
       <TopBar
         title="BeachSafe Live"
         right={
-          <div className="flex items-center gap-1 bg-blue-800 rounded-full px-2.5 py-1 text-xs font-medium">
-            <Languages className="w-3.5 h-3.5" />
-            {LANGUAGES.find((l) => l.code === language)?.native}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenNotifications}
+              className="relative flex items-center justify-center bg-blue-800 rounded-full w-8 h-8 active:bg-blue-700"
+              aria-label="Notification settings"
+            >
+              {notifyEnabled ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+              {notifyEnabled && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-blue-900" />}
+            </button>
+            <div className="flex items-center gap-1 bg-blue-800 rounded-full px-2.5 py-1 text-xs font-medium">
+              <Languages className="w-3.5 h-3.5" />
+              {LANGUAGES.find((l) => l.code === language)?.native}
+            </div>
           </div>
         }
       />
@@ -472,15 +488,187 @@ function EmergencyScreen({ beach, onBack }) {
   );
 }
 
+/* ---- Push notifications ---- */
+
+// FUTURE: real background push (alerts arriving while the app is fully
+// closed) requires a service worker + a backend push service (e.g. Web
+// Push / FCM). What's built here fires while the app is open in a browser
+// tab — a realistic "in-app + OS notification" layer, not true background
+// push. The toast banner is the guaranteed-visible part; the OS notification
+// is a bonus that depends on browser permission and focus state.
+
+function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, setNotifyTarget, permission, onTest, onBack }) {
+  const supported = permission !== "unsupported";
+  return (
+    <div className="pb-24">
+      <TopBar title="Push Alerts" onBack={onBack} />
+      <div className="px-4 mt-4">
+        {!supported && (
+          <div className="bg-slate-100 text-slate-500 rounded-xl p-3.5 text-sm mb-4">
+            Push notifications aren't supported in this browser. You'll still see in-app alert banners while using the app.
+          </div>
+        )}
+        {supported && permission === "denied" && (
+          <div className="bg-amber-50 text-amber-800 rounded-xl p-3.5 text-sm mb-4">
+            Notifications are blocked for this site in your browser settings. You'll still see in-app banners, but not OS-level alerts. To enable OS alerts, allow notifications for this site in your browser's settings.
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl p-4 ring-1 ring-slate-100 flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${notifyEnabled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>
+              {notifyEnabled ? <BellRing className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+            </div>
+            <div>
+              <p className="font-bold text-slate-800">Push alerts</p>
+              <p className="text-xs text-slate-400">Get notified the moment a lifeguard publishes an alert</p>
+            </div>
+          </div>
+          <button
+            onClick={onToggle}
+            className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${notifyEnabled ? "bg-blue-700 justify-end" : "bg-slate-200 justify-start"}`}
+            aria-label="Toggle push alerts"
+          >
+            <span className="w-5 h-5 rounded-full bg-white shadow" />
+          </button>
+        </div>
+
+        {notifyEnabled && (
+          <div className="bg-white rounded-2xl p-4 ring-1 ring-slate-100 mb-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Notify me about</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => setNotifyTarget("nearest")}
+                className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "nearest" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-slate-50"}`}
+              >
+                <span className="text-sm font-semibold text-slate-800">My nearest beach only</span>
+                {notifyTarget === "nearest" && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
+              </button>
+              <button
+                onClick={() => setNotifyTarget("all")}
+                className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "all" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-slate-50"}`}
+              >
+                <span className="text-sm font-semibold text-slate-800">All patrolled beaches</span>
+                {notifyTarget === "all" && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
+              </button>
+              {beaches.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => setNotifyTarget(b.id)}
+                  className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === b.id ? "bg-blue-50 ring-1 ring-blue-300" : "bg-slate-50"}`}
+                >
+                  <span className="text-sm font-semibold text-slate-800">{b.name} only</span>
+                  {notifyTarget === b.id && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {notifyEnabled && (
+          <button
+            onClick={onTest}
+            className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-700 rounded-xl py-3 font-bold text-sm"
+          >
+            <Bell className="w-4 h-4" /> Send a test alert
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AlertToast({ toast, onDismiss }) {
+  if (!toast) return null;
+  const sv = SEVERITY[toast.severity] || SEVERITY.info;
+  return (
+    <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
+      <div className={`rounded-2xl shadow-lg p-3.5 flex items-start gap-3 text-white ${sv.bg}`}>
+        <BellRing className="w-5 h-5 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase opacity-90">{toast.title}</p>
+          <p className="text-sm leading-snug mt-0.5">{toast.body}</p>
+        </div>
+        <button onClick={onDismiss} className="shrink-0 opacity-80 active:opacity-100">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ---- Root ---- */
 
 export default function TouristApp() {
-  const { beaches, liveByBeach, activeAlertsForBeach } = useBeachData();
+  const { beaches, alerts, liveByBeach, activeAlertsForBeach } = useBeachData();
   const geo = useGeolocation();
   const [screen, setScreen] = useState("home");
   const [previousScreen, setPreviousScreen] = useState("home");
   const [selectedBeachId, setSelectedBeachId] = useState(null);
   const [language, setLanguage] = useState("en");
+
+  // ---- Push notifications ----
+  const [notifyEnabled, setNotifyEnabled] = useState(false);
+  const [notifyTarget, setNotifyTarget] = useState("nearest"); // "nearest" | "all" | beachId
+  const [permission, setPermission] = useState(
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
+  );
+  const [toast, setToast] = useState(null);
+  const seenAlertIds = useRef(null); // null until seeded, so we never notify for pre-existing alerts
+
+  const sortedByDistance = useMemo(
+    () => [...withLiveDistance(beaches, geo)].sort((a, b) => a.liveDistanceKm - b.liveDistanceKm),
+    [beaches, geo.status, geo.coords]
+  );
+  const nearestBeachId = sortedByDistance[0]?.id;
+
+  function fireAlert(beach, alert) {
+    const sv = SEVERITY[alert.severity] || SEVERITY.info;
+    const title = `${sv.label} alert — ${beach ? beach.name : "Beach"}`;
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      try { new Notification(title, { body: alert.text }); } catch { /* some browsers restrict this outside a service worker */ }
+    }
+    // In-app banner: the one guaranteed-visible path regardless of OS/browser support.
+    setToast({ id: alert.id, title, body: alert.text, severity: alert.severity });
+    setTimeout(() => setToast((t) => (t && t.id === alert.id ? null : t)), 6000);
+  }
+
+  function handleToggleNotify() {
+    if (!notifyEnabled) {
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().then((p) => setPermission(p));
+      }
+      setNotifyEnabled(true);
+    } else {
+      setNotifyEnabled(false);
+    }
+  }
+
+  function handleTestAlert() {
+    const targetId = notifyTarget === "nearest" ? nearestBeachId : notifyTarget === "all" ? nearestBeachId : notifyTarget;
+    const beach = beaches.find((b) => b.id === targetId);
+    fireAlert(beach, { id: `test-${Date.now()}`, severity: "caution", text: "This is a test alert — push notifications are working." });
+  }
+
+  // Seed already-existing alerts as "seen" on first load so we only notify
+  // for alerts published *after* the app opened, not the full history.
+  useEffect(() => {
+    if (seenAlertIds.current === null) {
+      seenAlertIds.current = new Set(alerts.map((a) => a.id));
+    }
+  }, [alerts]);
+
+  // Watch for newly published alerts and notify if they match the person's target.
+  useEffect(() => {
+    if (!notifyEnabled || seenAlertIds.current === null) return;
+    const targetId = notifyTarget === "nearest" ? nearestBeachId : notifyTarget === "all" ? null : notifyTarget;
+    alerts.forEach((a) => {
+      if (seenAlertIds.current.has(a.id) || a.resolved) return;
+      seenAlertIds.current.add(a.id);
+      if (targetId !== null && a.beachId !== targetId) return; // not for the beach(es) they asked about
+      fireAlert(beaches.find((b) => b.id === a.beachId), a);
+    });
+  }, [alerts, notifyEnabled, notifyTarget, nearestBeachId, beaches]);
 
   const selectedBeach = beaches.find((b) => b.id === selectedBeachId) || null;
 
@@ -492,12 +680,29 @@ export default function TouristApp() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-slate-50 font-sans relative">
+      <AlertToast toast={toast} onDismiss={() => setToast(null)} />
+
       {screen === "home" && (
         <HomeScreen
           beaches={beaches}
           language={language}
           geo={geo}
+          notifyEnabled={notifyEnabled}
+          onOpenNotifications={() => goTo("notifications")}
           onSelectBeach={(id) => goTo("detail", { beachId: id })}
+        />
+      )}
+
+      {screen === "notifications" && (
+        <NotificationsScreen
+          beaches={beaches}
+          notifyEnabled={notifyEnabled}
+          onToggle={handleToggleNotify}
+          notifyTarget={notifyTarget}
+          setNotifyTarget={setNotifyTarget}
+          permission={permission}
+          onTest={handleTestAlert}
+          onBack={() => goTo(previousScreen === "notifications" ? "home" : previousScreen)}
         />
       )}
 
@@ -531,7 +736,7 @@ export default function TouristApp() {
       {screen !== "emergency" && (
         <>
           <SOSButton onClick={() => goTo("emergency")} />
-          <BottomNav screen={screen === "detail" ? "home" : screen} setScreen={goTo} />
+          <BottomNav screen={["detail", "notifications"].includes(screen) ? "home" : screen} setScreen={goTo} />
         </>
       )}
     </div>
