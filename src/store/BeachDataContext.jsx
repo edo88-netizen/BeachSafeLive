@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { INITIAL_BEACHES, SEVERITY_FLAG_EFFECT, SEVERITY } from "./beachData";
+import { INITIAL_BEACHES, SEVERITY_FLAG_EFFECT, SEVERITY, FLAG_STATUS } from "./beachData";
 
 /* ============================================================================
    This is what makes the two apps "connected": AdminApp and TouristApp both
@@ -124,7 +124,7 @@ export function BeachDataProvider({ children }) {
     setState((prev) => {
       const nextBeaches = prev.beaches.map((b) => (b.id === beachId ? { ...b, flagStatus, lastUpdated: "Just now" } : b));
       const nextAuditLog = actor
-        ? addAuditEntry(prev.auditLog, { type: "flag_change", actor, beachId, summary: `set the flag status to "${flagStatus}"` })
+        ? addAuditEntry(prev.auditLog, { type: "flag_change", actor, beachId, summary: `set the flag status to "${FLAG_STATUS[flagStatus]?.label || flagStatus}"` })
         : prev.auditLog;
       return { ...prev, beaches: nextBeaches, auditLog: nextAuditLog };
     });

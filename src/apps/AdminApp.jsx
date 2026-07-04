@@ -3,7 +3,7 @@ import {
   LogOut, Lock, ShieldCheck, Radio,
   Send, CheckCircle2, ChevronRight, ScrollText,
   Eye, Mic, MapPin, Languages, Delete, Megaphone, RotateCcw,
-  Map, Trash2, Waves, Ban, Undo2,
+  Map, Trash2, Waves, Ban, Undo2, Flag,
 } from "lucide-react";
 import { useBeachData } from "../store/BeachDataContext";
 import {
@@ -136,7 +136,7 @@ function BeachSelectScreen({ user, beaches, onPick, onLogout }) {
 
 /* ---- Control room ---- */
 
-function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, onPublish, onResolve, onToggleLive, onUpdateMapFeatures, onSwitchBeach, onLogout }) {
+function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, onPublish, onResolve, onToggleLive, onSetFlag, onUpdateMapFeatures, onSwitchBeach, onLogout }) {
   const [tab, setTab] = useState("composer");
   const canSwitch = user.assignedBeachIds.length > 1;
 
@@ -186,7 +186,7 @@ function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, on
 
       <div className="flex-1 min-w-0">
         {tab === "composer" && (
-          <ComposerPanel beach={beach} activeAlerts={activeAlerts} live={live} onPublish={onPublish} onResolve={onResolve} onToggleLive={onToggleLive} />
+          <ComposerPanel beach={beach} activeAlerts={activeAlerts} live={live} onPublish={onPublish} onResolve={onResolve} onToggleLive={onToggleLive} onSetFlag={onSetFlag} />
         )}
         {tab === "map" && (
           <BeachMapEditor beach={beach} onSave={(features, summary) => onUpdateMapFeatures(beach.id, features, summary)} />
@@ -200,7 +200,7 @@ function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, on
 
 /* ---- Composer ---- */
 
-function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onToggleLive }) {
+function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onToggleLive, onSetFlag }) {
   const [presetKey, setPresetKey] = useState(null);
   const [text, setText] = useState("");
   const [severity, setSeverity] = useState("caution");
@@ -245,6 +245,24 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
           <Radio className="w-4 h-4" /> ON AIR — broadcasting live since {fmtTime(live.startedAt)} · visible now in the tourist app
         </div>
       )}
+
+      <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Flag status — set manually</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+        {Object.entries(FLAG_STATUS).map(([key, cfg]) => {
+          const active = beach.flagStatus === key;
+          return (
+            <button
+              key={key}
+              onClick={() => onSetFlag(key)}
+              className={`flex items-center gap-2 rounded-xl py-3 px-3 ring-1 ${active ? `${cfg.bg} ${cfg.text} ring-transparent font-bold` : "bg-white ring-stone-200 text-stone-600"}`}
+            >
+              <FlagIcon status={key} size="sm" />
+              <span className="text-sm text-left leading-tight">{cfg.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-stone-400 -mt-3 mb-5">Publishing a danger or closure alert below will also update this automatically — you can always override it here.</p>
 
       {confirmed && (
         <div className="bg-teal-50 text-teal-700 ring-1 ring-teal-200 rounded-xl px-4 py-3 mb-5 flex items-center gap-2 text-sm font-bold">
@@ -520,6 +538,7 @@ function AuditLogPanel({ auditLog, beaches }) {
               {e.type === "broadcast_start" && <Radio className="w-4 h-4 text-red-600" />}
               {e.type === "broadcast_end" && <Mic className="w-4 h-4 text-stone-400" />}
               {e.type === "map_update" && <Map className="w-4 h-4 text-teal-600" />}
+              {e.type === "flag_change" && <Flag className="w-4 h-4 text-amber-600" />}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-stone-800">
@@ -608,7 +627,7 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
 /* ---- Root ---- */
 
 export default function AdminApp() {
-  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, updateMapFeatures, activeAlertsForBeach } = useBeachData();
+  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, setBeachFlag, updateMapFeatures, activeAlertsForBeach } = useBeachData();
 
   const [screen, setScreen] = useState("login"); // login | pin | beachSelect | room
   const [pendingUser, setPendingUser] = useState(null);
@@ -664,6 +683,7 @@ export default function AdminApp() {
           onResolve={(alertId) => resolveAlert(alertId, user.name)}
           onToggleLive={(beachId) => toggleLive(beachId, user.name)}
           onUpdateMapFeatures={(beachId, features, summary) => updateMapFeatures(beachId, features, user.name, summary)}
+          onSetFlag={(status) => setBeachFlag(currentBeach.id, status, user.name)}
           onSwitchBeach={() => setScreen("beachSelect")}
           onLogout={logout}
         />
