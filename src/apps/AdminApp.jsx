@@ -3,12 +3,14 @@ import {
   LogOut, Lock, ShieldCheck, Radio,
   Send, CheckCircle2, ChevronRight, ScrollText,
   Eye, Mic, MapPin, Languages, Delete, Megaphone, RotateCcw,
+  Map, Trash2, Waves, Ban, Undo2,
 } from "lucide-react";
 import { useBeachData } from "../store/BeachDataContext";
 import {
-  USERS, PRESETS, SEVERITY, FLAG_STATUS, LANGUAGES,
+  USERS, PRESETS, SEVERITY, FLAG_STATUS, LANGUAGES, HAZARD_TYPES,
   translateAlert, fmtTime, fmtClock,
 } from "../store/beachData";
+import BeachMap from "../components/BeachMap";
 
 /* ============================================================================
    AdminApp now reads/writes the SAME state as TouristApp via useBeachData().
@@ -143,12 +145,13 @@ function BeachSelectScreen({ user, beaches, onPick, onLogout }) {
 
 /* ---- Control room ---- */
 
-function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, onPublish, onResolve, onToggleLive, onSwitchBeach, onLogout }) {
+function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, onPublish, onResolve, onToggleLive, onUpdateMapFeatures, onSwitchBeach, onLogout }) {
   const [tab, setTab] = useState("composer");
   const canSwitch = user.assignedBeachIds.length > 1;
 
   const NAV = [
     { id: "composer", label: "Compose Alert", icon: Megaphone },
+    { id: "map", label: "Beach Map", icon: Map },
     { id: "log", label: "Audit Log", icon: ScrollText },
     { id: "public", label: "Public View", icon: Eye },
   ];
@@ -193,6 +196,9 @@ function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, on
       <div className="flex-1 min-w-0">
         {tab === "composer" && (
           <ComposerPanel beach={beach} activeAlerts={activeAlerts} live={live} onPublish={onPublish} onResolve={onResolve} onToggleLive={onToggleLive} />
+        )}
+        {tab === "map" && (
+          <BeachMapEditor beach={beach} onSave={(features, summary) => onUpdateMapFeatures(beach.id, features, summary)} />
         )}
         {tab === "log" && <AuditLogPanel auditLog={auditLog} beaches={allBeaches} />}
         {tab === "public" && <PublicViewPanel beach={beach} activeAlerts={activeAlerts} live={live} />}
@@ -340,6 +346,173 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
 
 /* ---- Audit log ---- */
 
+/* ---- Beach map editor ---- */
+
+function BeachMapEditor({ beach, onSave }) {
+  const [mode, setMode] = useState(null); // null | "swimZone" | "closedZone" | "hazard"
+  const [hazardType, setHazardType] = useState("rip");
+  const [draftPoints, setDraftPoints] = useState([]);
+
+  const mapFeatures = beach.mapFeatures || { swimZone: null, closedZones: [], hazardMarkers: [] };
+
+  function handleMapClick(latlng) {
+    if (mode === "hazard") {
+      const marker = { id: `hm-${Date.now()}`, lat: latlng[0], lng: latlng[1], type: hazardType, label: `${HAZARD_TYPES[hazardType].label} reported here` };
+      onSave({ ...mapFeatures, hazardMarkers: [...mapFeatures.hazardMarkers, marker] }, `added a ${HAZARD_TYPES[hazardType].label.toLowerCase()} marker`);
+      return;
+    }
+    if (mode === "swimZone" || mode === "closedZone") {
+      setDraftPoints((pts) => [...pts, latlng]);
+    }
+  }
+
+  function finishShape() {
+    if (draftPoints.length < 3) return;
+    if (mode === "swimZone") {
+      onSave({ ...mapFeatures, swimZone: { id: `sz-${Date.now()}`, points: draftPoints } }, "updated the swim zone");
+    } else if (mode === "closedZone") {
+      onSave({ ...mapFeatures, closedZones: [...mapFeatures.closedZones, { id: `cz-${Date.now()}`, points: draftPoints }] }, "added a closed zone");
+    }
+    setDraftPoints([]);
+    setMode(null);
+  }
+
+  function cancelShape() {
+    setDraftPoints([]);
+    setMode(null);
+  }
+
+  function clearSwimZone() {
+    onSave({ ...mapFeatures, swimZone: null }, "removed the swim zone");
+  }
+
+  function removeClosedZone(id) {
+    onSave({ ...mapFeatures, closedZones: mapFeatures.closedZones.filter((z) => z.id !== id) }, "removed a closed zone");
+  }
+
+  function removeHazard(id) {
+    onSave({ ...mapFeatures, hazardMarkers: mapFeatures.hazardMarkers.filter((h) => h.id !== id) }, "removed a hazard marker");
+  }
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <h1 className="text-2xl font-extrabold text-slate-800 mb-1">Beach Map — {beach.name}</h1>
+      <p className="text-sm text-slate-400 mb-4">Draw the safe swim zone, mark closed areas, and drop hazard pins directly on the satellite image. Changes appear on the tourist app instantly.</p>
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        <button
+          onClick={() => { setMode(mode === "swimZone" ? null : "swimZone"); setDraftPoints([]); }}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${mode === "swimZone" ? "bg-emerald-600 text-white" : "bg-white ring-1 ring-slate-200 text-slate-700"}`}
+        >
+          <Waves className="w-4 h-4" /> {mode === "swimZone" ? "Click map to add points..." : "Draw swim zone"}
+        </button>
+        <button
+          onClick={() => { setMode(mode === "closedZone" ? null : "closedZone"); setDraftPoints([]); }}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${mode === "closedZone" ? "bg-red-600 text-white" : "bg-white ring-1 ring-slate-200 text-slate-700"}`}
+        >
+          <Ban className="w-4 h-4" /> {mode === "closedZone" ? "Click map to add points..." : "Draw closed zone"}
+        </button>
+
+        <div className="flex items-center gap-1 bg-white rounded-lg ring-1 ring-slate-200 px-1 py-1">
+          <select
+            value={hazardType}
+            onChange={(e) => setHazardType(e.target.value)}
+            className="text-sm font-semibold text-slate-700 bg-transparent focus:outline-none px-1"
+          >
+            {Object.entries(HAZARD_TYPES).map(([key, cfg]) => (
+              <option key={key} value={key}>{cfg.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => { setMode(mode === "hazard" ? null : "hazard"); setDraftPoints([]); }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-bold ${mode === "hazard" ? "bg-amber-500 text-white" : "text-slate-700"}`}
+          >
+            <MapPin className="w-4 h-4" /> {mode === "hazard" ? "Tap map to place" : "Add hazard"}
+          </button>
+        </div>
+
+        {(mode === "swimZone" || mode === "closedZone") && (
+          <>
+            <button onClick={finishShape} disabled={draftPoints.length < 3} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold bg-blue-800 text-white disabled:opacity-40">
+              <CheckCircle2 className="w-4 h-4" /> Finish shape ({draftPoints.length} pts)
+            </button>
+            <button onClick={cancelShape} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold bg-white ring-1 ring-slate-200 text-slate-600">
+              <Undo2 className="w-4 h-4" /> Cancel
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-2xl overflow-hidden ring-1 ring-slate-200" style={{ height: 420 }}>
+        <BeachMap
+          beach={beach}
+          editable={mode !== null}
+          onMapClick={handleMapClick}
+          draftPoints={draftPoints}
+          draftKind={mode === "closedZone" ? "closedZone" : "swimZone"}
+          onDeleteHazard={removeHazard}
+          className="w-full h-full"
+        />
+      </div>
+      {mode && (
+        <p className="text-xs text-slate-400 mt-2">
+          {mode === "hazard" ? "Tap anywhere on the map to drop a hazard pin. Keep tapping to add more." : "Tap at least 3 points to outline the area, then hit Finish shape."}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
+        <div className="bg-white rounded-xl p-4 ring-1 ring-slate-100">
+          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Swim zone</p>
+          {mapFeatures.swimZone ? (
+            <button onClick={clearSwimZone} className="flex items-center gap-1.5 text-sm font-bold text-red-600">
+              <Trash2 className="w-4 h-4" /> Remove swim zone
+            </button>
+          ) : (
+            <p className="text-sm text-slate-400">No swim zone drawn yet.</p>
+          )}
+        </div>
+        <div className="bg-white rounded-xl p-4 ring-1 ring-slate-100">
+          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Closed zones ({mapFeatures.closedZones.length})</p>
+          {mapFeatures.closedZones.length === 0 ? (
+            <p className="text-sm text-slate-400">No closed zones marked.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {mapFeatures.closedZones.map((z, i) => (
+                <div key={z.id} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-700">Closed area {i + 1}</span>
+                  <button onClick={() => removeClosedZone(z.id)} className="text-red-600 font-bold flex items-center gap-1">
+                    <Trash2 className="w-3.5 h-3.5" /> Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl p-4 ring-1 ring-slate-100 mt-4">
+        <p className="text-xs font-bold uppercase text-slate-400 mb-2">Hazard markers ({mapFeatures.hazardMarkers.length})</p>
+        {mapFeatures.hazardMarkers.length === 0 ? (
+          <p className="text-sm text-slate-400">No hazards marked yet. Choose a type above, tap "Add hazard," then tap the map.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {mapFeatures.hazardMarkers.map((h) => (
+              <div key={h.id} className="flex items-center justify-between text-sm gap-2">
+                <span className="text-slate-700 min-w-0">
+                  <span className="font-semibold" style={{ color: HAZARD_TYPES[h.type]?.color }}>{HAZARD_TYPES[h.type]?.label}</span> — {h.label}
+                </span>
+                <button onClick={() => removeHazard(h.id)} className="text-red-600 font-bold flex items-center gap-1 shrink-0">
+                  <Trash2 className="w-3.5 h-3.5" /> Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AuditLogPanel({ auditLog, beaches }) {
   const beachName = (id) => beaches.find((b) => b.id === id)?.name || id;
   return (
@@ -355,6 +528,7 @@ function AuditLogPanel({ auditLog, beaches }) {
               {e.type === "resolve" && <RotateCcw className="w-4 h-4 text-slate-500" />}
               {e.type === "broadcast_start" && <Radio className="w-4 h-4 text-red-600" />}
               {e.type === "broadcast_end" && <Mic className="w-4 h-4 text-slate-400" />}
+              {e.type === "map_update" && <Map className="w-4 h-4 text-emerald-600" />}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-slate-800">
@@ -406,6 +580,12 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
           </div>
         )}
 
+        <div className="p-5 pb-0">
+          <div className="rounded-xl overflow-hidden ring-1 ring-slate-200" style={{ height: 220 }}>
+            <BeachMap beach={beach} className="w-full h-full" zoom={17} />
+          </div>
+        </div>
+
         <div className="p-5 space-y-3">
           {activeAlerts.length === 0 && (
             <div className="flex items-center gap-2 text-slate-400 text-sm">
@@ -437,7 +617,7 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
 /* ---- Root ---- */
 
 export default function AdminApp() {
-  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, activeAlertsForBeach } = useBeachData();
+  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, updateMapFeatures, activeAlertsForBeach } = useBeachData();
 
   const [screen, setScreen] = useState("login"); // login | pin | beachSelect | room
   const [pendingUser, setPendingUser] = useState(null);
@@ -492,6 +672,7 @@ export default function AdminApp() {
           onPublish={(payload) => publishAlert({ ...payload, actor: user.name })}
           onResolve={(alertId) => resolveAlert(alertId, user.name)}
           onToggleLive={(beachId) => toggleLive(beachId, user.name)}
+          onUpdateMapFeatures={(beachId, features, summary) => updateMapFeatures(beachId, features, user.name, summary)}
           onSwitchBeach={() => setScreen("beachSelect")}
           onLogout={logout}
         />

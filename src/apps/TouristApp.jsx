@@ -4,9 +4,12 @@ import {
   Wind, Thermometer, Sun, Clock, Megaphone, ShieldAlert, CheckCircle2,
   Circle, ChevronRight, Volume2, Navigation, Users, Info, Bell, BellRing, BellOff, X
 } from "lucide-react";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
 import { useBeachData } from "../store/BeachDataContext";
 import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime, calculateDistanceKm } from "../store/beachData";
 import { useGeolocation } from "../hooks/useGeolocation";
+import BeachMap from "../components/BeachMap"; // also loads leaflet's CSS as a side effect
 
 /* ============================================================================
    This app now reads live data from BeachDataContext (shared with AdminApp)
@@ -23,6 +26,48 @@ function withLiveDistance(beaches, geo) {
     }
     return { ...b, liveDistanceKm: b.distanceKm, isLive: false };
   });
+}
+
+// Hex equivalents of FLAG_STATUS colors — Leaflet draws markers via raw
+// HTML/CSS outside Tailwind's reach, so we need actual hex values here.
+const FLAG_HEX = { patrolled: "#10b981", caution: "#f59e0b", closed: "#dc2626", unpatrolled: "#94a3b8" };
+
+function overviewDivIcon(status) {
+  const color = FLAG_HEX[status] || FLAG_HEX.unpatrolled;
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:16px;height:16px;background:${color};border:3px solid white;border-radius:9999px;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+}
+
+// Real satellite overview showing every beach at once — tap a pin to jump
+// straight to that beach's detail screen.
+function OverviewMap({ beaches, onSelectBeach }) {
+  const positions = beaches.map((b) => [b.lat, b.lng]);
+  return (
+    <MapContainer
+      bounds={positions}
+      boundsOptions={{ padding: [30, 30] }}
+      style={{ height: "100%", width: "100%" }}
+      scrollWheelZoom={false}
+    >
+      <TileLayer
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        attribution="Tiles &copy; Esri"
+        maxZoom={19}
+      />
+      {beaches.map((b) => (
+        <Marker
+          key={b.id}
+          position={[b.lat, b.lng]}
+          icon={overviewDivIcon(b.flagStatus)}
+          eventHandlers={{ click: () => onSelectBeach(b.id) }}
+        />
+      ))}
+    </MapContainer>
+  );
 }
 
 function FlagIcon({ status, size = "md" }) {
@@ -166,20 +211,10 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
 
       <LocationBanner geo={geo} />
 
-      {/* Map placeholder — FUTURE: real map SDK (Mapbox/Google Maps) with live pins */}
-      <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden h-44 bg-gradient-to-b from-sky-300 to-blue-500">
-        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255,255,255,0.4) 8px, rgba(255,255,255,0.4) 9px)" }} />
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-yellow-100/90" />
-        {sorted.slice(0, 5).map((b, i) => (
-          <div
-            key={b.id}
-            className="absolute flex flex-col items-center"
-            style={{ left: `${18 + i * 16}%`, top: `${30 + (i % 3) * 18}%` }}
-          >
-            <div className={`w-3 h-3 rounded-full ${FLAG_STATUS[b.flagStatus].dot} ring-2 ring-white shadow`} />
-          </div>
-        ))}
-        <div className="absolute top-3 left-3 bg-white/90 rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-blue-900">
+      {/* Real satellite overview of every beach — tap a pin to open it */}
+      <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden h-44 ring-1 ring-slate-200">
+        <OverviewMap beaches={sorted} onSelectBeach={onSelectBeach} />
+        <div className="absolute top-3 left-3 bg-white/90 rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-blue-900 pointer-events-none z-[1000]">
           <Navigation className="w-3.5 h-3.5" /> Live map
         </div>
       </div>
@@ -230,8 +265,9 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
 
 /* ---- Beach detail ---- */
 
-function BeachDetailScreen({ beach, onBack, onGoLive }) {
+function BeachDetailScreen({ beach, onBack, onGoLive, userLocation }) {
   const cfg = FLAG_STATUS[beach.flagStatus];
+  const mapFeatures = beach.mapFeatures || { swimZone: null, closedZones: [], hazardMarkers: [] };
   return (
     <div className="pb-24">
       <TopBar title={beach.name} onBack={onBack} />
@@ -243,6 +279,27 @@ function BeachDetailScreen({ beach, onBack, onGoLive }) {
             <p className={`font-bold text-lg ${cfg.text}`}>{cfg.label} {beach.adminManaged ? "" : "(unpatrolled beach)"}</p>
             <p className="text-xs text-slate-500 mt-0.5">Updated {beach.lastUpdated}</p>
           </div>
+        </div>
+      </div>
+
+      <div className="px-4 mt-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Beach map</p>
+        <div className="rounded-2xl overflow-hidden ring-1 ring-slate-200" style={{ height: 260 }}>
+          <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} />
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1">
+          {mapFeatures.swimZone && (
+            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Safe swim zone</span>
+          )}
+          {mapFeatures.closedZones.length > 0 && (
+            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" /> Closed area</span>
+          )}
+          {mapFeatures.hazardMarkers.length > 0 && (
+            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Tap a pin for hazard details</span>
+          )}
+          {userLocation && (
+            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" /> You</span>
+          )}
         </div>
       </div>
 
@@ -711,6 +768,7 @@ export default function TouristApp() {
           beach={selectedBeach}
           onBack={() => goTo("home")}
           onGoLive={() => goTo("live")}
+          userLocation={geo.status === "granted" && geo.coords ? geo.coords : null}
         />
       )}
 

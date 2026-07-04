@@ -72,6 +72,29 @@ beachsafe-app/
         └── AdminApp.jsx
 ```
 
+## Interactive beach maps
+
+Both apps now show a real satellite map (via Leaflet + Esri World Imagery —
+free, no API key required) instead of a placeholder graphic:
+
+- **Admin → Beach Map tab**: draw the safe swim zone, mark closed areas, and
+  drop hazard pins (rip current, rocks, marine life, submerged hazard,
+  other) directly on the satellite image for your assigned beach.
+- **Tourist → Beach detail screen**: the same map, read-only, with the
+  swim zone, closed areas, and tappable hazard pins — plus a blue dot for
+  the visitor's own GPS location.
+- **Tourist → Home screen**: a real satellite overview of every beach at
+  once; tap a pin to jump straight to that beach.
+
+Changes made in the admin map editor sync instantly to the tourist app via
+the same shared data layer (and across browser tabs via BroadcastChannel).
+
+**Note on the map tiles:** Esri World Imagery is used because it requires no
+API key, which keeps local setup simple. For a real production deployment
+at scale, check Esri's usage terms for your traffic level, or switch to a
+licensed provider (Mapbox, Google Maps Platform) — the `BeachMap` component
+in `src/components/BeachMap.jsx` only needs its `TileLayer` URL changed.
+
 ## Admin demo logins
 
 | Name        | PIN  | Role               | Assigned beaches            |

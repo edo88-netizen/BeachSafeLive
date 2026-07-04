@@ -145,6 +145,19 @@ export function BeachDataProvider({ children }) {
     });
   }, []);
 
+  // Admin map editor calls this whenever hazard markers, the swim zone, or
+  // closed zones change for a beach. Synced instantly to the tourist app's
+  // map via the same shared state (and across tabs via BroadcastChannel).
+  const updateMapFeatures = useCallback((beachId, mapFeatures, actor, summary) => {
+    setState((prev) => {
+      const nextBeaches = prev.beaches.map((b) => (b.id === beachId ? { ...b, mapFeatures } : b));
+      const nextAuditLog = addAuditEntry(prev.auditLog, {
+        type: "map_update", actor, beachId, summary: summary || "updated the beach map",
+      });
+      return { ...prev, beaches: nextBeaches, auditLog: nextAuditLog };
+    });
+  }, []);
+
   const activeAlertsForBeach = useCallback((beachId) => {
     return state.alerts
       .filter((a) => a.beachId === beachId && !a.resolved && a.expiresAt > now)
@@ -153,7 +166,7 @@ export function BeachDataProvider({ children }) {
 
   const value = {
     beaches: state.beaches, alerts: state.alerts, auditLog: state.auditLog, liveByBeach: state.liveByBeach, now,
-    publishAlert, resolveAlert, toggleLive, setBeachFlag, activeAlertsForBeach,
+    publishAlert, resolveAlert, toggleLive, setBeachFlag, activeAlertsForBeach, updateMapFeatures,
   };
 
   return <BeachDataContext.Provider value={value}>{children}</BeachDataContext.Provider>;
