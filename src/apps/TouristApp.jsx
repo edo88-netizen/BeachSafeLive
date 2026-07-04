@@ -5,7 +5,8 @@ import {
   Circle, ChevronRight, Volume2, Navigation, Users, Info
 } from "lucide-react";
 import { useBeachData } from "../store/BeachDataContext";
-import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime } from "../store/beachData";
+import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime, calculateDistanceKm } from "../store/beachData";
+import { useGeolocation } from "../hooks/useGeolocation";
 
 /* ============================================================================
    This app now reads live data from BeachDataContext (shared with AdminApp)
@@ -91,8 +92,48 @@ function SOSButton({ onClick }) {
 
 /* ---- Home ---- */
 
-function HomeScreen({ beaches, onSelectBeach, language }) {
-  const sorted = [...beaches].sort((a, b) => a.distanceKm - b.distanceKm);
+function LocationBanner({ geo }) {
+  if (geo.status === "granted") {
+    return (
+      <div className="mx-4 mt-4 flex items-center gap-2 bg-emerald-50 text-emerald-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
+        <Navigation className="w-4 h-4 shrink-0" />
+        Using your location — distances below are accurate.
+      </div>
+    );
+  }
+  if (geo.status === "loading" || geo.status === "idle") {
+    return (
+      <div className="mx-4 mt-4 flex items-center gap-2 bg-blue-50 text-blue-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
+        <Navigation className="w-4 h-4 shrink-0 animate-pulse" />
+        Finding your location...
+      </div>
+    );
+  }
+  const message =
+    geo.status === "unavailable"
+      ? "Location isn't supported on this device."
+      : "Location access needed for accurate distances.";
+  return (
+    <div className="mx-4 mt-4 flex items-center justify-between gap-2 bg-amber-50 text-amber-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
+      <div className="flex items-center gap-2 min-w-0">
+        <Navigation className="w-4 h-4 shrink-0" />
+        <span>{message} Showing estimated distances.</span>
+      </div>
+      {geo.status !== "unavailable" && (
+        <button onClick={geo.retry} className="shrink-0 underline font-bold">Retry</button>
+      )}
+    </div>
+  );
+}
+
+function HomeScreen({ beaches, onSelectBeach, language, geo }) {
+  const beachesWithDistance = beaches.map((b) => {
+    if (geo.status === "granted" && geo.coords) {
+      return { ...b, liveDistanceKm: calculateDistanceKm(geo.coords.lat, geo.coords.lng, b.lat, b.lng), isLive: true };
+    }
+    return { ...b, liveDistanceKm: b.distanceKm, isLive: false };
+  });
+  const sorted = [...beachesWithDistance].sort((a, b) => a.liveDistanceKm - b.liveDistanceKm);
   const nearest = sorted[0];
 
   return (
@@ -106,6 +147,8 @@ function HomeScreen({ beaches, onSelectBeach, language }) {
           </div>
         }
       />
+
+      <LocationBanner geo={geo} />
 
       {/* Map placeholder — FUTURE: real map SDK (Mapbox/Google Maps) with live pins */}
       <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden h-44 bg-gradient-to-b from-sky-300 to-blue-500">
@@ -134,7 +177,9 @@ function HomeScreen({ beaches, onSelectBeach, language }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-slate-800 truncate">{nearest.name}</h2>
-              <span className="text-xs text-slate-400 font-medium">{nearest.distanceKm} km</span>
+              <span className="text-xs text-slate-400 font-medium">
+                {nearest.isLive ? "" : "~"}{nearest.liveDistanceKm.toFixed(1)} km
+              </span>
             </div>
             <div className="mt-2"><StatusPill status={nearest.flagStatus} /></div>
           </div>
@@ -155,7 +200,7 @@ function HomeScreen({ beaches, onSelectBeach, language }) {
                 <FlagIcon status={b.flagStatus} />
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-800 truncate">{b.name}</p>
-                  <p className="text-xs text-slate-400">{b.state} · {b.distanceKm} km away</p>
+                  <p className="text-xs text-slate-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km away</p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
@@ -431,6 +476,7 @@ function EmergencyScreen({ beach, onBack }) {
 
 export default function TouristApp() {
   const { beaches, liveByBeach, activeAlertsForBeach } = useBeachData();
+  const geo = useGeolocation();
   const [screen, setScreen] = useState("home");
   const [previousScreen, setPreviousScreen] = useState("home");
   const [selectedBeachId, setSelectedBeachId] = useState(null);
@@ -450,6 +496,7 @@ export default function TouristApp() {
         <HomeScreen
           beaches={beaches}
           language={language}
+          geo={geo}
           onSelectBeach={(id) => goTo("detail", { beachId: id })}
         />
       )}

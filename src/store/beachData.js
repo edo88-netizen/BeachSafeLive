@@ -17,39 +17,56 @@ export const USERS = [
   { id: "u3", name: "Priya Nair", pin: "3456", role: "Patrol Supervisor", assignedBeachIds: ["bondi", "manly", "stkilda"] },
 ];
 
-// FUTURE: replace with GPS-based sort + a real live-conditions feed
+// Real coordinates so distance can be computed from the user's actual GPS
+// position. `distanceKm` below is only a fallback shown before location is
+// available (or if it's denied/unsupported) — see calculateDistanceKm().
 export const INITIAL_BEACHES = [
   {
-    id: "bondi", name: "Bondi Beach", state: "NSW", distanceKm: 1.2, flagStatus: "patrolled",
+    id: "bondi", name: "Bondi Beach", state: "NSW", lat: -33.8908, lng: 151.2743, distanceKm: 1.2, flagStatus: "patrolled",
     hazards: ["Rip currents near rocks (south end)", "Strong shore break at high tide"],
     conditions: { waveHeightM: 1.2, waterTempC: 21, uvIndex: 9, windKmh: 18, windDir: "NE" },
     patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 6, lastUpdated: "2 min ago", adminManaged: true,
   },
   {
-    id: "manly", name: "Manly Beach", state: "NSW", distanceKm: 3.8, flagStatus: "caution",
+    id: "manly", name: "Manly Beach", state: "NSW", lat: -33.7969, lng: 151.2882, distanceKm: 3.8, flagStatus: "caution",
     hazards: ["Increased rip activity", "Bluebottles reported"],
     conditions: { waveHeightM: 1.5, waterTempC: 20, uvIndex: 8, windKmh: 24, windDir: "E" },
     patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 4, lastUpdated: "5 min ago", adminManaged: true,
   },
   {
-    id: "stkilda", name: "St Kilda Beach", state: "VIC", distanceKm: 9.4, flagStatus: "patrolled",
+    id: "stkilda", name: "St Kilda Beach", state: "VIC", lat: -37.8678, lng: 144.9800, distanceKm: 9.4, flagStatus: "patrolled",
     hazards: ["Boat traffic near pier"],
     conditions: { waveHeightM: 0.4, waterTempC: 17, uvIndex: 6, windKmh: 14, windDir: "S" },
     patrolHours: "10:30 AM – 5:00 PM", lifeguardsOnDuty: 3, lastUpdated: "1 min ago", adminManaged: true,
   },
   {
-    id: "cottesloe", name: "Cottesloe Beach", state: "WA", distanceKm: 14.7, flagStatus: "unpatrolled",
+    id: "cottesloe", name: "Cottesloe Beach", state: "WA", lat: -31.9959, lng: 115.7581, distanceKm: 14.7, flagStatus: "unpatrolled",
     hazards: ["No lifeguards outside patrol season"],
     conditions: { waveHeightM: 0.8, waterTempC: 19, uvIndex: 7, windKmh: 20, windDir: "SW" },
     patrolHours: "Not patrolled today", lifeguardsOnDuty: 0, lastUpdated: "18 min ago", adminManaged: false,
   },
   {
-    id: "surfers", name: "Surfers Paradise", state: "QLD", distanceKm: 22.1, flagStatus: "closed",
+    id: "surfers", name: "Surfers Paradise", state: "QLD", lat: -28.0023, lng: 153.4145, distanceKm: 22.1, flagStatus: "closed",
     hazards: ["Dangerous surf — beach closed to swimmers", "Lightning risk"],
     conditions: { waveHeightM: 2.4, waterTempC: 24, uvIndex: 10, windKmh: 32, windDir: "NE" },
     patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 8, lastUpdated: "Just now", adminManaged: false,
   },
 ];
+
+// Haversine formula — great-circle distance between two lat/lng points in km.
+// FUTURE: for very precise "walking distance," swap for a real routing API
+// (Google Directions, Mapbox Directions); this is straight-line distance.
+export function calculateDistanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371; // Earth's radius in km
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export const PRESETS = [
   { key: "shark", label: "Shark Sighting", icon: Fish, severity: "danger", expiryMin: 60,
