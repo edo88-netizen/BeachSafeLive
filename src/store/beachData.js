@@ -134,17 +134,17 @@ export const SEVERITY = {
   info: { label: "Info", bg: "bg-blue-600", soft: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700" },
   caution: { label: "Caution", bg: "bg-amber-500", soft: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700" },
   danger: { label: "Danger", bg: "bg-red-600", soft: "bg-red-50", ring: "ring-red-200", text: "text-red-700" },
-  closure: { label: "Closure", bg: "bg-slate-900", soft: "bg-slate-100", ring: "ring-slate-300", text: "text-slate-800" },
+  closure: { label: "Closure", bg: "bg-stone-900", soft: "bg-stone-100", ring: "ring-stone-300", text: "text-stone-800" },
 };
 
 // severity -> effect on the public flag status shown to tourists
 export const SEVERITY_FLAG_EFFECT = { danger: "closed", closure: "closed", caution: "caution", info: null };
 
 export const FLAG_STATUS = {
-  patrolled: { label: "Patrolled", short: "Safe to swim", flagColors: ["bg-red-600", "bg-yellow-400"], text: "text-emerald-700", bg: "bg-emerald-50", dot: "bg-emerald-500" },
-  caution: { label: "Caution", short: "Swim with caution", flagColors: ["bg-red-600", "bg-yellow-400"], text: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500" },
-  closed: { label: "Closed", short: "Closed to swimmers", flagColors: ["bg-red-600", "bg-red-600"], text: "text-red-700", bg: "bg-red-50", dot: "bg-red-600" },
-  unpatrolled: { label: "Unpatrolled", short: "No lifeguards", flagColors: ["bg-slate-300", "bg-slate-300"], text: "text-slate-600", bg: "bg-slate-100", dot: "bg-slate-400" },
+  patrolled: { label: "Patrolled", short: "Safe to swim", flagColors: ["bg-red-600", "bg-yellow-400"], flagHex: ["#dc2626", "#facc15"], text: "text-teal-700", bg: "bg-teal-50", dot: "bg-teal-500" },
+  caution: { label: "Caution", short: "Swim with caution", flagColors: ["bg-red-600", "bg-yellow-400"], flagHex: ["#dc2626", "#facc15"], text: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500" },
+  closed: { label: "Closed", short: "Closed to swimmers", flagColors: ["bg-red-600", "bg-red-600"], flagHex: ["#dc2626", "#dc2626"], text: "text-red-700", bg: "bg-red-50", dot: "bg-red-600" },
+  unpatrolled: { label: "Unpatrolled", short: "No lifeguards", flagColors: ["bg-stone-300", "bg-stone-300"], flagHex: ["#a8a29e", "#a8a29e"], text: "text-stone-600", bg: "bg-stone-100", dot: "bg-stone-400" },
 };
 
 // FUTURE: swap for a real translation API — kept keyed by preset so custom

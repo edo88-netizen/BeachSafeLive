@@ -11,6 +11,7 @@ import {
   translateAlert, fmtTime, fmtClock,
 } from "../store/beachData";
 import BeachMap from "../components/BeachMap";
+import FlagIcon from "../components/FlagIcon";
 
 /* ============================================================================
    AdminApp now reads/writes the SAME state as TouristApp via useBeachData().
@@ -19,16 +20,6 @@ import BeachMap from "../components/BeachMap";
    both reflect it instantly, no refresh needed.
    ============================================================================ */
 
-function FlagIcon({ status }) {
-  const cfg = FLAG_STATUS[status];
-  return (
-    <div className="flex w-7 h-5 rounded-sm overflow-hidden ring-1 ring-black/10">
-      <div className={`w-1/2 h-full ${cfg.flagColors[0]}`} />
-      <div className={`w-1/2 h-full ${cfg.flagColors[1]}`} />
-    </div>
-  );
-}
-
 /* ---- Login ---- */
 
 function LoginScreen({ onPicked }) {
@@ -36,7 +27,7 @@ function LoginScreen({ onPicked }) {
     <div className="min-h-screen bg-blue-950 flex flex-col items-center justify-center p-6">
       <div className="flex items-center gap-2 text-white mb-8">
         <ShieldCheck className="w-8 h-8" />
-        <span className="text-2xl font-extrabold">BeachSafe Admin</span>
+        <span className="font-display text-2xl font-extrabold tracking-tight">BeachSafe Admin</span>
       </div>
       <p className="text-blue-200 mb-6 text-sm">Tap your name to sign in</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-2xl">
@@ -49,8 +40,8 @@ function LoginScreen({ onPicked }) {
             <div className="w-16 h-16 rounded-full bg-blue-800 text-white flex items-center justify-center text-xl font-bold">
               {u.name.split(" ").map((n) => n[0]).join("")}
             </div>
-            <p className="font-bold text-slate-800 text-center leading-tight">{u.name}</p>
-            <p className="text-xs text-slate-400">{u.role}</p>
+            <p className="font-bold text-stone-800 text-center leading-tight">{u.name}</p>
+            <p className="text-xs text-stone-400">{u.role}</p>
             <p className="text-[11px] text-blue-700 font-semibold">{u.assignedBeachIds.length} beach{u.assignedBeachIds.length > 1 ? "es" : ""}</p>
           </button>
         ))}
@@ -93,10 +84,10 @@ function PinScreen({ user, onSuccess, onCancel }) {
 
       <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
         {["1","2","3","4","5","6","7","8","9"].map((d) => (
-          <button key={d} onClick={() => press(d)} className="bg-blue-900 text-white text-2xl font-bold rounded-xl py-4 active:bg-blue-800">{d}</button>
+          <button key={d} onClick={() => press(d)} className="font-data bg-blue-900 text-white text-2xl font-bold rounded-xl py-4 active:bg-blue-800">{d}</button>
         ))}
         <button onClick={onCancel} className="text-blue-300 text-sm font-semibold">Cancel</button>
-        <button onClick={() => press("0")} className="bg-blue-900 text-white text-2xl font-bold rounded-xl py-4 active:bg-blue-800">0</button>
+        <button onClick={() => press("0")} className="font-data bg-blue-900 text-white text-2xl font-bold rounded-xl py-4 active:bg-blue-800">0</button>
         <button onClick={() => setEntry(entry.slice(0, -1))} className="flex items-center justify-center text-blue-300 active:text-white">
           <Delete className="w-6 h-6" />
         </button>
@@ -111,30 +102,30 @@ function PinScreen({ user, onSuccess, onCancel }) {
 function BeachSelectScreen({ user, beaches, onPick, onLogout }) {
   const assigned = beaches.filter((b) => user.assignedBeachIds.includes(b.id));
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-stone-50 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-sm text-slate-400">Signed in as</p>
-          <p className="text-xl font-bold text-slate-800">{user.name}</p>
+          <p className="text-sm text-stone-400">Signed in as</p>
+          <p className="text-xl font-bold text-stone-800">{user.name}</p>
         </div>
-        <button onClick={onLogout} className="flex items-center gap-1.5 text-slate-500 font-semibold text-sm bg-white rounded-full px-3 py-2 ring-1 ring-slate-200">
+        <button onClick={onLogout} className="flex items-center gap-1.5 text-stone-500 font-semibold text-sm bg-white rounded-full px-3 py-2 ring-1 ring-stone-200">
           <LogOut className="w-4 h-4" /> Sign out
         </button>
       </div>
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Your assigned beaches</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-3">Your assigned beaches</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {assigned.map((b) => {
           const cfg = FLAG_STATUS[b.flagStatus];
           return (
-            <button key={b.id} onClick={() => onPick(b.id)} className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-slate-100 flex items-center justify-between active:bg-slate-50 text-left">
+            <button key={b.id} onClick={() => onPick(b.id)} className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-stone-100 flex items-center justify-between active:bg-stone-50 text-left">
               <div>
-                <p className="text-lg font-bold text-slate-800">{b.name}</p>
-                <p className="text-xs text-slate-400 mb-2">{b.state}</p>
+                <p className="text-lg font-bold text-stone-800">{b.name}</p>
+                <p className="text-xs text-stone-400 mb-2">{b.state}</p>
                 <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.text}`}>
                   <FlagIcon status={b.flagStatus} /> {cfg.label}
                 </span>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-300" />
+              <ChevronRight className="w-5 h-5 text-stone-300" />
             </button>
           );
         })}
@@ -157,7 +148,7 @@ function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, on
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-stone-50 flex">
       <div className="w-56 bg-blue-950 text-white flex flex-col shrink-0">
         <div className="p-4 border-b border-blue-900">
           <div className="flex items-center gap-2 mb-1">
@@ -236,14 +227,14 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
     <div className="p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-800">{beach.name}</h1>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-stone-800">{beach.name}</h1>
           <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mt-1 ${FLAG_STATUS[beach.flagStatus].bg} ${FLAG_STATUS[beach.flagStatus].text}`}>
             <FlagIcon status={beach.flagStatus} /> {FLAG_STATUS[beach.flagStatus].label}
           </span>
         </div>
         <button
           onClick={() => onToggleLive(beach.id)}
-          className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm ${live?.isLive ? "bg-red-600 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}
+          className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm ${live?.isLive ? "bg-red-600 text-white" : "bg-white ring-1 ring-stone-200 text-stone-600"}`}
         >
           <Mic className="w-4 h-4" /> {live?.isLive ? "End live broadcast" : "Start live broadcast"}
         </button>
@@ -256,12 +247,12 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
       )}
 
       {confirmed && (
-        <div className="bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 rounded-xl px-4 py-3 mb-5 flex items-center gap-2 text-sm font-bold">
+        <div className="bg-teal-50 text-teal-700 ring-1 ring-teal-200 rounded-xl px-4 py-3 mb-5 flex items-center gap-2 text-sm font-bold">
           <CheckCircle2 className="w-4 h-4" /> Alert published instantly to the public beach page.
         </div>
       )}
 
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Presets — one tap to fill</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Presets — one tap to fill</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-5">
         {PRESETS.map((p) => {
           const Icon = p.icon;
@@ -269,7 +260,7 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
           const sv = SEVERITY[p.severity];
           return (
             <button key={p.key} onClick={() => pickPreset(p)}
-              className={`flex flex-col items-center gap-1.5 rounded-xl py-4 px-2 ring-1 ${active ? `${sv.bg} text-white ring-transparent` : `bg-white ring-slate-200 text-slate-700`}`}>
+              className={`flex flex-col items-center gap-1.5 rounded-xl py-4 px-2 ring-1 ${active ? `${sv.bg} text-white ring-transparent` : `bg-white ring-stone-200 text-stone-700`}`}>
               <Icon className="w-6 h-6" />
               <span className="text-xs font-bold text-center leading-tight">{p.label}</span>
             </button>
@@ -277,32 +268,32 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
         })}
       </div>
 
-      <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Message</label>
+      <label className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2 block">Message</label>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         maxLength={220}
         rows={3}
         placeholder="Select a preset above or type a custom alert..."
-        className="w-full rounded-xl ring-1 ring-slate-200 bg-white p-3.5 text-slate-800 text-base mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full rounded-xl ring-1 ring-stone-200 bg-white p-3.5 text-stone-800 text-base mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      <p className="text-xs text-slate-400 mb-5 text-right">{text.length}/220</p>
+      <p className="text-xs text-stone-400 mb-5 text-right">{text.length}/220</p>
 
-      <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Severity</label>
+      <label className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2 block">Severity</label>
       <div className="grid grid-cols-4 gap-2 mb-5">
         {Object.entries(SEVERITY).map(([key, cfg]) => (
           <button key={key} onClick={() => setSeverity(key)}
-            className={`py-3 rounded-xl font-bold text-sm ${severity === key ? `${cfg.bg} text-white` : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>
+            className={`py-3 rounded-xl font-bold text-sm ${severity === key ? `${cfg.bg} text-white` : "bg-white ring-1 ring-stone-200 text-stone-600"}`}>
             {cfg.label}
           </button>
         ))}
       </div>
 
-      <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Expires in</label>
+      <label className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2 block">Expires in</label>
       <div className="flex gap-2 mb-6 flex-wrap">
         {[15, 30, 60, 120, 240].map((m) => (
           <button key={m} onClick={() => setExpiryMin(m)}
-            className={`px-4 py-2.5 rounded-full font-semibold text-sm ${expiryMin === m ? "bg-blue-800 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600"}`}>
+            className={`px-4 py-2.5 rounded-full font-semibold text-sm ${expiryMin === m ? "bg-blue-800 text-white" : "bg-white ring-1 ring-stone-200 text-stone-600"}`}>
             {m < 60 ? `${m} min` : `${m / 60} hr`}
           </button>
         ))}
@@ -318,7 +309,7 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
 
       {activeAlerts.length > 0 && (
         <div className="mt-8">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Active alerts on this beach</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Active alerts on this beach</p>
           <div className="space-y-2">
             {activeAlerts.map((a) => {
               const sv = SEVERITY[a.severity];
@@ -327,11 +318,11 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-[11px] font-bold uppercase ${sv.text}`}>{sv.label}</span>
-                      <span className="text-xs text-slate-400">published {fmtTime(a.createdAt)} · expires {fmtTime(a.expiresAt)}</span>
+                      <span className="text-xs text-stone-400">published {fmtTime(a.createdAt)} · expires {fmtTime(a.expiresAt)}</span>
                     </div>
-                    <p className="text-sm text-slate-800">{a.text}</p>
+                    <p className="text-sm text-stone-800">{a.text}</p>
                   </div>
-                  <button onClick={() => onResolve(a.id)} className="shrink-0 flex items-center gap-1 text-xs font-bold text-slate-500 bg-white rounded-full px-3 py-1.5 ring-1 ring-slate-200">
+                  <button onClick={() => onResolve(a.id)} className="shrink-0 flex items-center gap-1 text-xs font-bold text-stone-500 bg-white rounded-full px-3 py-1.5 ring-1 ring-stone-200">
                     <RotateCcw className="w-3.5 h-3.5" /> Resolve
                   </button>
                 </div>
@@ -396,28 +387,28 @@ function BeachMapEditor({ beach, onSave }) {
 
   return (
     <div className="p-6 max-w-4xl">
-      <h1 className="text-2xl font-extrabold text-slate-800 mb-1">Beach Map — {beach.name}</h1>
-      <p className="text-sm text-slate-400 mb-4">Draw the safe swim zone, mark closed areas, and drop hazard pins directly on the satellite image. Changes appear on the tourist app instantly.</p>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight text-stone-800 mb-1">Beach Map — {beach.name}</h1>
+      <p className="text-sm text-stone-400 mb-4">Draw the safe swim zone, mark closed areas, and drop hazard pins directly on the satellite image. Changes appear on the tourist app instantly.</p>
 
       <div className="flex flex-wrap gap-2 mb-3">
         <button
           onClick={() => { setMode(mode === "swimZone" ? null : "swimZone"); setDraftPoints([]); }}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${mode === "swimZone" ? "bg-emerald-600 text-white" : "bg-white ring-1 ring-slate-200 text-slate-700"}`}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${mode === "swimZone" ? "bg-teal-600 text-white" : "bg-white ring-1 ring-stone-200 text-stone-700"}`}
         >
           <Waves className="w-4 h-4" /> {mode === "swimZone" ? "Click map to add points..." : "Draw swim zone"}
         </button>
         <button
           onClick={() => { setMode(mode === "closedZone" ? null : "closedZone"); setDraftPoints([]); }}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${mode === "closedZone" ? "bg-red-600 text-white" : "bg-white ring-1 ring-slate-200 text-slate-700"}`}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${mode === "closedZone" ? "bg-red-600 text-white" : "bg-white ring-1 ring-stone-200 text-stone-700"}`}
         >
           <Ban className="w-4 h-4" /> {mode === "closedZone" ? "Click map to add points..." : "Draw closed zone"}
         </button>
 
-        <div className="flex items-center gap-1 bg-white rounded-lg ring-1 ring-slate-200 px-1 py-1">
+        <div className="flex items-center gap-1 bg-white rounded-lg ring-1 ring-stone-200 px-1 py-1">
           <select
             value={hazardType}
             onChange={(e) => setHazardType(e.target.value)}
-            className="text-sm font-semibold text-slate-700 bg-transparent focus:outline-none px-1"
+            className="text-sm font-semibold text-stone-700 bg-transparent focus:outline-none px-1"
           >
             {Object.entries(HAZARD_TYPES).map(([key, cfg]) => (
               <option key={key} value={key}>{cfg.label}</option>
@@ -425,7 +416,7 @@ function BeachMapEditor({ beach, onSave }) {
           </select>
           <button
             onClick={() => { setMode(mode === "hazard" ? null : "hazard"); setDraftPoints([]); }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-bold ${mode === "hazard" ? "bg-amber-500 text-white" : "text-slate-700"}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-bold ${mode === "hazard" ? "bg-amber-500 text-white" : "text-stone-700"}`}
           >
             <MapPin className="w-4 h-4" /> {mode === "hazard" ? "Tap map to place" : "Add hazard"}
           </button>
@@ -436,14 +427,14 @@ function BeachMapEditor({ beach, onSave }) {
             <button onClick={finishShape} disabled={draftPoints.length < 3} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold bg-blue-800 text-white disabled:opacity-40">
               <CheckCircle2 className="w-4 h-4" /> Finish shape ({draftPoints.length} pts)
             </button>
-            <button onClick={cancelShape} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold bg-white ring-1 ring-slate-200 text-slate-600">
+            <button onClick={cancelShape} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold bg-white ring-1 ring-stone-200 text-stone-600">
               <Undo2 className="w-4 h-4" /> Cancel
             </button>
           </>
         )}
       </div>
 
-      <div className="rounded-2xl overflow-hidden ring-1 ring-slate-200" style={{ height: 420 }}>
+      <div className="rounded-2xl overflow-hidden ring-1 ring-stone-200" style={{ height: 420 }}>
         <BeachMap
           beach={beach}
           editable={mode !== null}
@@ -455,31 +446,31 @@ function BeachMapEditor({ beach, onSave }) {
         />
       </div>
       {mode && (
-        <p className="text-xs text-slate-400 mt-2">
+        <p className="text-xs text-stone-400 mt-2">
           {mode === "hazard" ? "Tap anywhere on the map to drop a hazard pin. Keep tapping to add more." : "Tap at least 3 points to outline the area, then hit Finish shape."}
         </p>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-        <div className="bg-white rounded-xl p-4 ring-1 ring-slate-100">
-          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Swim zone</p>
+        <div className="bg-white rounded-xl p-4 ring-1 ring-stone-100">
+          <p className="text-xs font-bold uppercase text-stone-400 mb-2">Swim zone</p>
           {mapFeatures.swimZone ? (
             <button onClick={clearSwimZone} className="flex items-center gap-1.5 text-sm font-bold text-red-600">
               <Trash2 className="w-4 h-4" /> Remove swim zone
             </button>
           ) : (
-            <p className="text-sm text-slate-400">No swim zone drawn yet.</p>
+            <p className="text-sm text-stone-400">No swim zone drawn yet.</p>
           )}
         </div>
-        <div className="bg-white rounded-xl p-4 ring-1 ring-slate-100">
-          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Closed zones ({mapFeatures.closedZones.length})</p>
+        <div className="bg-white rounded-xl p-4 ring-1 ring-stone-100">
+          <p className="text-xs font-bold uppercase text-stone-400 mb-2">Closed zones ({mapFeatures.closedZones.length})</p>
           {mapFeatures.closedZones.length === 0 ? (
-            <p className="text-sm text-slate-400">No closed zones marked.</p>
+            <p className="text-sm text-stone-400">No closed zones marked.</p>
           ) : (
             <div className="space-y-1.5">
               {mapFeatures.closedZones.map((z, i) => (
                 <div key={z.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">Closed area {i + 1}</span>
+                  <span className="text-stone-700">Closed area {i + 1}</span>
                   <button onClick={() => removeClosedZone(z.id)} className="text-red-600 font-bold flex items-center gap-1">
                     <Trash2 className="w-3.5 h-3.5" /> Remove
                   </button>
@@ -490,15 +481,15 @@ function BeachMapEditor({ beach, onSave }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-4 ring-1 ring-slate-100 mt-4">
-        <p className="text-xs font-bold uppercase text-slate-400 mb-2">Hazard markers ({mapFeatures.hazardMarkers.length})</p>
+      <div className="bg-white rounded-xl p-4 ring-1 ring-stone-100 mt-4">
+        <p className="text-xs font-bold uppercase text-stone-400 mb-2">Hazard markers ({mapFeatures.hazardMarkers.length})</p>
         {mapFeatures.hazardMarkers.length === 0 ? (
-          <p className="text-sm text-slate-400">No hazards marked yet. Choose a type above, tap "Add hazard," then tap the map.</p>
+          <p className="text-sm text-stone-400">No hazards marked yet. Choose a type above, tap "Add hazard," then tap the map.</p>
         ) : (
           <div className="space-y-1.5">
             {mapFeatures.hazardMarkers.map((h) => (
               <div key={h.id} className="flex items-center justify-between text-sm gap-2">
-                <span className="text-slate-700 min-w-0">
+                <span className="text-stone-700 min-w-0">
                   <span className="font-semibold" style={{ color: HAZARD_TYPES[h.type]?.color }}>{HAZARD_TYPES[h.type]?.label}</span> — {h.label}
                 </span>
                 <button onClick={() => removeHazard(h.id)} className="text-red-600 font-bold flex items-center gap-1 shrink-0">
@@ -517,26 +508,26 @@ function AuditLogPanel({ auditLog, beaches }) {
   const beachName = (id) => beaches.find((b) => b.id === id)?.name || id;
   return (
     <div className="p-6 max-w-4xl">
-      <h1 className="text-2xl font-extrabold text-slate-800 mb-1">Audit Log</h1>
-      <p className="text-sm text-slate-400 mb-5">Every action is timestamped and permanently recorded.</p>
-      <div className="bg-white rounded-xl ring-1 ring-slate-100 divide-y divide-slate-100">
-        {auditLog.length === 0 && <p className="p-4 text-sm text-slate-400">No actions recorded yet.</p>}
+      <h1 className="font-display text-2xl font-extrabold tracking-tight text-stone-800 mb-1">Audit Log</h1>
+      <p className="text-sm text-stone-400 mb-5">Every action is timestamped and permanently recorded.</p>
+      <div className="bg-white rounded-xl ring-1 ring-stone-100 divide-y divide-stone-100">
+        {auditLog.length === 0 && <p className="p-4 text-sm text-stone-400">No actions recorded yet.</p>}
         {auditLog.map((e) => (
           <div key={e.id} className="p-3.5 flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center shrink-0">
               {e.type === "publish" && <Megaphone className="w-4 h-4 text-blue-700" />}
-              {e.type === "resolve" && <RotateCcw className="w-4 h-4 text-slate-500" />}
+              {e.type === "resolve" && <RotateCcw className="w-4 h-4 text-stone-500" />}
               {e.type === "broadcast_start" && <Radio className="w-4 h-4 text-red-600" />}
-              {e.type === "broadcast_end" && <Mic className="w-4 h-4 text-slate-400" />}
-              {e.type === "map_update" && <Map className="w-4 h-4 text-emerald-600" />}
+              {e.type === "broadcast_end" && <Mic className="w-4 h-4 text-stone-400" />}
+              {e.type === "map_update" && <Map className="w-4 h-4 text-teal-600" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-slate-800">
-                <span className="font-bold">{e.actor}</span> {e.summary} <span className="text-slate-400">— {beachName(e.beachId)}</span>
+              <p className="text-sm text-stone-800">
+                <span className="font-bold">{e.actor}</span> {e.summary} <span className="text-stone-400">— {beachName(e.beachId)}</span>
               </p>
-              {e.detail && <p className="text-xs text-slate-500 mt-0.5">{e.detail}</p>}
+              {e.detail && <p className="text-xs text-stone-500 mt-0.5">{e.detail}</p>}
             </div>
-            <span className="text-xs text-slate-400 shrink-0">{fmtClock(e.at)}</span>
+            <span className="text-xs text-stone-400 shrink-0">{fmtClock(e.at)}</span>
           </div>
         ))}
       </div>
@@ -554,23 +545,23 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
     <div className="p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-800">Public preview</h1>
-          <p className="text-sm text-slate-400">Exactly what visitors see for {beach.name}, updated instantly.</p>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-stone-800">Public preview</h1>
+          <p className="text-sm text-stone-400">Exactly what visitors see for {beach.name}, updated instantly.</p>
         </div>
-        <div className="flex items-center gap-1.5 bg-white rounded-full ring-1 ring-slate-200 px-2 py-1.5">
-          <Languages className="w-4 h-4 text-slate-400" />
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className="text-sm font-semibold text-slate-700 bg-transparent focus:outline-none">
+        <div className="flex items-center gap-1.5 bg-white rounded-full ring-1 ring-stone-200 px-2 py-1.5">
+          <Languages className="w-4 h-4 text-stone-400" />
+          <select value={lang} onChange={(e) => setLang(e.target.value)} className="text-sm font-semibold text-stone-700 bg-transparent focus:outline-none">
             {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl ring-1 ring-slate-100 overflow-hidden">
+      <div className="bg-white rounded-2xl ring-1 ring-stone-100 overflow-hidden">
         <div className={`p-5 ${cfg.bg} flex items-center gap-3`}>
           <FlagIcon status={beach.flagStatus} />
           <div>
             <p className={`font-extrabold text-lg ${cfg.text}`}>{cfg.label}</p>
-            <p className="text-xs text-slate-500">{beach.name}, {beach.state}</p>
+            <p className="text-xs text-stone-500">{beach.name}, {beach.state}</p>
           </div>
         </div>
 
@@ -581,14 +572,14 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
         )}
 
         <div className="p-5 pb-0">
-          <div className="rounded-xl overflow-hidden ring-1 ring-slate-200" style={{ height: 220 }}>
+          <div className="rounded-xl overflow-hidden ring-1 ring-stone-200" style={{ height: 220 }}>
             <BeachMap beach={beach} className="w-full h-full" zoom={17} />
           </div>
         </div>
 
         <div className="p-5 space-y-3">
           {activeAlerts.length === 0 && (
-            <div className="flex items-center gap-2 text-slate-400 text-sm">
+            <div className="flex items-center gap-2 text-stone-400 text-sm">
               <MapPin className="w-4 h-4" /> No active alerts right now.
             </div>
           )}
@@ -599,11 +590,11 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
               <div key={a.id} className={`rounded-xl p-3.5 ring-1 ${sv.soft} ${sv.ring}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={`text-[11px] font-bold uppercase ${sv.text}`}>{sv.label}</span>
-                  <span className="text-xs text-slate-400">{fmtTime(a.createdAt)}</span>
+                  <span className="text-xs text-stone-400">{fmtTime(a.createdAt)}</span>
                 </div>
-                <p className="text-sm text-slate-800">{text}</p>
+                <p className="text-sm text-stone-800">{text}</p>
                 {isFallback && (
-                  <p className="text-xs text-slate-400 mt-1.5 italic">Translation unavailable — showing original English text.</p>
+                  <p className="text-xs text-stone-400 mt-1.5 italic">Translation unavailable — showing original English text.</p>
                 )}
               </div>
             );
@@ -631,7 +622,7 @@ export default function AdminApp() {
   const currentBeach = beaches.find((b) => b.id === currentBeachId);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-stone-50 font-sans">
       {screen === "login" && (
         <LoginScreen onPicked={(u) => { setPendingUser(u); setScreen("pin"); }} />
       )}

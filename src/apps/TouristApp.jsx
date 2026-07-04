@@ -10,6 +10,7 @@ import { useBeachData } from "../store/BeachDataContext";
 import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime, calculateDistanceKm } from "../store/beachData";
 import { useGeolocation } from "../hooks/useGeolocation";
 import BeachMap from "../components/BeachMap"; // also loads leaflet's CSS as a side effect
+import FlagIcon from "../components/FlagIcon";
 
 /* ============================================================================
    This app now reads live data from BeachDataContext (shared with AdminApp)
@@ -30,7 +31,7 @@ function withLiveDistance(beaches, geo) {
 
 // Hex equivalents of FLAG_STATUS colors — Leaflet draws markers via raw
 // HTML/CSS outside Tailwind's reach, so we need actual hex values here.
-const FLAG_HEX = { patrolled: "#10b981", caution: "#f59e0b", closed: "#dc2626", unpatrolled: "#94a3b8" };
+const FLAG_HEX = { patrolled: "#0d9488", caution: "#f59e0b", closed: "#dc2626", unpatrolled: "#a8a29e" };
 
 function overviewDivIcon(status) {
   const color = FLAG_HEX[status] || FLAG_HEX.unpatrolled;
@@ -70,17 +71,6 @@ function OverviewMap({ beaches, onSelectBeach }) {
   );
 }
 
-function FlagIcon({ status, size = "md" }) {
-  const cfg = FLAG_STATUS[status];
-  const dims = size === "lg" ? "w-10 h-7" : "w-6 h-4";
-  return (
-    <div className={`flex rounded-sm overflow-hidden ring-1 ring-black/10 ${dims}`}>
-      <div className={`w-1/2 h-full ${cfg.flagColors[0]}`} />
-      <div className={`w-1/2 h-full ${cfg.flagColors[1]}`} />
-    </div>
-  );
-}
-
 function StatusPill({ status }) {
   const cfg = FLAG_STATUS[status];
   return (
@@ -93,14 +83,14 @@ function StatusPill({ status }) {
 
 function TopBar({ title, onBack, right }) {
   return (
-    <div className="sticky top-0 z-20 bg-blue-900 text-white px-4 py-4 flex items-center justify-between shadow-md">
+    <div className="sticky top-0 z-20 bg-blue-950 text-white px-4 py-4 flex items-center justify-between shadow-lg shadow-blue-950/20">
       <div className="flex items-center gap-2 min-w-0">
         {onBack && (
-          <button onClick={onBack} className="p-1 -ml-1 rounded-full active:bg-blue-800" aria-label="Back">
+          <button onClick={onBack} className="p-1 -ml-1 rounded-full active:bg-blue-900" aria-label="Back">
             <ChevronLeft className="w-6 h-6" />
           </button>
         )}
-        <span className="text-lg font-bold truncate">{title}</span>
+        <span className="font-display text-lg font-bold tracking-tight truncate">{title}</span>
       </div>
       {right}
     </div>
@@ -114,7 +104,7 @@ function BottomNav({ screen, setScreen }) {
     { id: "language", label: "Language", icon: Languages },
   ];
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-20 max-w-md mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 flex z-20 max-w-md mx-auto">
       {items.map((item) => {
         const Icon = item.icon;
         const active = screen === item.id;
@@ -122,7 +112,7 @@ function BottomNav({ screen, setScreen }) {
           <button
             key={item.id}
             onClick={() => setScreen(item.id)}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 ${active ? "text-blue-800" : "text-slate-400"}`}
+            className={`flex-1 flex flex-col items-center gap-1 py-2.5 ${active ? "text-blue-800" : "text-stone-400"}`}
           >
             <Icon className={`w-6 h-6 ${active ? "fill-blue-100" : ""}`} strokeWidth={active ? 2.5 : 2} />
             <span className={`text-xs ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
@@ -151,7 +141,7 @@ function SOSButton({ onClick }) {
 function LocationBanner({ geo }) {
   if (geo.status === "granted") {
     return (
-      <div className="mx-4 mt-4 flex items-center gap-2 bg-emerald-50 text-emerald-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
+      <div className="mx-4 mt-4 flex items-center gap-2 bg-teal-50 text-teal-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
         <Navigation className="w-4 h-4 shrink-0" />
         Using your location — distances below are accurate.
       </div>
@@ -199,7 +189,7 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
               aria-label="Notification settings"
             >
               {notifyEnabled ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-              {notifyEnabled && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-blue-900" />}
+              {notifyEnabled && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-teal-400 ring-2 ring-blue-900" />}
             </button>
             <div className="flex items-center gap-1 bg-blue-800 rounded-full px-2.5 py-1 text-xs font-medium">
               <Languages className="w-3.5 h-3.5" />
@@ -212,7 +202,7 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
       <LocationBanner geo={geo} />
 
       {/* Real satellite overview of every beach — tap a pin to open it */}
-      <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden h-44 ring-1 ring-slate-200">
+      <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden h-44 ring-1 ring-stone-200">
         <OverviewMap beaches={sorted} onSelectBeach={onSelectBeach} />
         <div className="absolute top-3 left-3 bg-white/90 rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-blue-900 pointer-events-none z-[1000]">
           <Navigation className="w-3.5 h-3.5" /> Live map
@@ -220,41 +210,41 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
       </div>
 
       <div className="px-4 mt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Nearest to you</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Nearest to you</p>
         <button
           onClick={() => onSelectBeach(nearest.id)}
-          className="w-full text-left bg-white rounded-2xl p-4 shadow-sm ring-1 ring-slate-100 flex items-center justify-between active:bg-slate-50"
+          className="w-full text-left bg-white rounded-2xl p-4 shadow-sm ring-1 ring-stone-100 flex items-center justify-between active:bg-stone-50"
         >
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-slate-800 truncate">{nearest.name}</h2>
-              <span className="text-xs text-slate-400 font-medium">
+              <h2 className="font-display text-xl font-bold tracking-tight text-stone-800 truncate">{nearest.name}</h2>
+              <span className="text-xs text-stone-400 font-medium">
                 {nearest.isLive ? "" : "~"}{nearest.liveDistanceKm.toFixed(1)} km
               </span>
             </div>
             <div className="mt-2"><StatusPill status={nearest.flagStatus} /></div>
           </div>
-          <ChevronRight className="w-5 h-5 text-slate-300 shrink-0" />
+          <ChevronRight className="w-5 h-5 text-stone-300 shrink-0" />
         </button>
       </div>
 
       <div className="px-4 mt-6">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">All patrolled beaches</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">All patrolled beaches</p>
         <div className="space-y-2">
           {sorted.map((b) => (
             <button
               key={b.id}
               onClick={() => onSelectBeach(b.id)}
-              className="w-full text-left bg-white rounded-xl p-3.5 shadow-sm ring-1 ring-slate-100 flex items-center justify-between active:bg-slate-50"
+              className="w-full text-left bg-white rounded-xl p-3.5 shadow-sm ring-1 ring-stone-100 flex items-center justify-between active:bg-stone-50"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <FlagIcon status={b.flagStatus} />
                 <div className="min-w-0">
-                  <p className="font-semibold text-slate-800 truncate">{b.name}</p>
-                  <p className="text-xs text-slate-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km away</p>
+                  <p className="font-semibold text-stone-800 truncate">{b.name}</p>
+                  <p className="text-xs text-stone-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km away</p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+              <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
             </button>
           ))}
         </div>
@@ -277,73 +267,73 @@ function BeachDetailScreen({ beach, onBack, onGoLive, userLocation }) {
           <FlagIcon status={beach.flagStatus} size="lg" />
           <div>
             <p className={`font-bold text-lg ${cfg.text}`}>{cfg.label} {beach.adminManaged ? "" : "(unpatrolled beach)"}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Updated {beach.lastUpdated}</p>
+            <p className="text-xs text-stone-500 mt-0.5">Updated {beach.lastUpdated}</p>
           </div>
         </div>
       </div>
 
       <div className="px-4 mt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Beach map</p>
-        <div className="rounded-2xl overflow-hidden ring-1 ring-slate-200" style={{ height: 260 }}>
+        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Beach map</p>
+        <div className="rounded-2xl overflow-hidden ring-1 ring-stone-200" style={{ height: 260 }}>
           <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} />
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1">
           {mapFeatures.swimZone && (
-            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Safe swim zone</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-sm bg-teal-500 inline-block" /> Safe swim zone</span>
           )}
           {mapFeatures.closedZones.length > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" /> Closed area</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" /> Closed area</span>
           )}
           {mapFeatures.hazardMarkers.length > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Tap a pin for hazard details</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Tap a pin for hazard details</span>
           )}
           {userLocation && (
-            <span className="flex items-center gap-1.5 text-xs text-slate-500"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" /> You</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" /> You</span>
           )}
         </div>
       </div>
 
       <div className="px-4 mt-4 grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-xl p-3 ring-1 ring-slate-100">
+        <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Clock className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-slate-400">Patrol hours</p>
-          <p className="font-semibold text-slate-800 text-sm">{beach.patrolHours}</p>
+          <p className="text-xs text-stone-400">Patrol hours</p>
+          <p className="font-semibold text-stone-800 text-sm">{beach.patrolHours}</p>
         </div>
-        <div className="bg-white rounded-xl p-3 ring-1 ring-slate-100">
+        <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Users className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-slate-400">Lifeguards on duty</p>
-          <p className="font-semibold text-slate-800 text-sm">{beach.lifeguardsOnDuty}</p>
+          <p className="text-xs text-stone-400">Lifeguards on duty</p>
+          <p className="font-semibold text-stone-800 text-sm">{beach.lifeguardsOnDuty}</p>
         </div>
-        <div className="bg-white rounded-xl p-3 ring-1 ring-slate-100">
+        <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Waves className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-slate-400">Wave height</p>
-          <p className="font-semibold text-slate-800 text-sm">{beach.conditions.waveHeightM} m</p>
+          <p className="text-xs text-stone-400">Wave height</p>
+          <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.waveHeightM} m</p>
         </div>
-        <div className="bg-white rounded-xl p-3 ring-1 ring-slate-100">
+        <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Thermometer className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-slate-400">Water temp</p>
-          <p className="font-semibold text-slate-800 text-sm">{beach.conditions.waterTempC}°C</p>
+          <p className="text-xs text-stone-400">Water temp</p>
+          <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.waterTempC}°C</p>
         </div>
-        <div className="bg-white rounded-xl p-3 ring-1 ring-slate-100">
+        <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Sun className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-slate-400">UV index</p>
-          <p className="font-semibold text-slate-800 text-sm">{beach.conditions.uvIndex} (extreme)</p>
+          <p className="text-xs text-stone-400">UV index</p>
+          <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.uvIndex} (extreme)</p>
         </div>
-        <div className="bg-white rounded-xl p-3 ring-1 ring-slate-100">
+        <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Wind className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-slate-400">Wind</p>
-          <p className="font-semibold text-slate-800 text-sm">{beach.conditions.windKmh} km/h {beach.conditions.windDir}</p>
+          <p className="text-xs text-stone-400">Wind</p>
+          <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.windKmh} km/h {beach.conditions.windDir}</p>
         </div>
       </div>
 
       {beach.hazards.length > 0 && (
         <div className="px-4 mt-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Known hazards</p>
-          <div className="bg-white rounded-xl ring-1 ring-slate-100 divide-y divide-slate-100">
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Known hazards</p>
+          <div className="bg-white rounded-xl ring-1 ring-stone-100 divide-y divide-stone-100">
             {beach.hazards.map((h, i) => (
               <div key={i} className="flex items-start gap-2 p-3">
                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-slate-700">{h}</p>
+                <p className="text-sm text-stone-700">{h}</p>
               </div>
             ))}
           </div>
@@ -366,7 +356,7 @@ function BeachDetailScreen({ beach, onBack, onGoLive, userLocation }) {
 
 const LEVEL_STYLES = {
   danger: { bg: "bg-red-50", ring: "ring-red-200", text: "text-red-700", icon: AlertTriangle, label: "danger" },
-  closure: { bg: "bg-slate-100", ring: "ring-slate-300", text: "text-slate-800", icon: AlertTriangle, label: "closure" },
+  closure: { bg: "bg-stone-100", ring: "ring-stone-300", text: "text-stone-800", icon: AlertTriangle, label: "closure" },
   caution: { bg: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700", icon: AlertTriangle, label: "caution" },
   info: { bg: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700", icon: Info, label: "info" },
 };
@@ -406,7 +396,7 @@ function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, o
 
       <div className="px-4 mt-4 space-y-3">
         {alerts.length === 0 && (
-          <div className="flex items-center gap-2 text-slate-400 text-sm py-6 justify-center">
+          <div className="flex items-center gap-2 text-stone-400 text-sm py-6 justify-center">
             <MapPin className="w-4 h-4" /> No active alerts for this beach right now.
           </div>
         )}
@@ -420,11 +410,11 @@ function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, o
                 <div className={`flex items-center gap-1.5 text-xs font-bold uppercase ${style.text}`}>
                   <Icon className="w-3.5 h-3.5" /> {style.label}
                 </div>
-                <span className="text-xs text-slate-400">{fmtTime(a.createdAt)}</span>
+                <span className="text-xs text-stone-400">{fmtTime(a.createdAt)}</span>
               </div>
-              <p className="text-slate-800 text-sm leading-relaxed">{text}</p>
+              <p className="text-stone-800 text-sm leading-relaxed">{text}</p>
               {isFallback && (
-                <p className="text-xs text-slate-400 mt-1.5 italic">
+                <p className="text-xs text-stone-400 mt-1.5 italic">
                   Translation unavailable right now — showing original English text.
                 </p>
               )}
@@ -447,15 +437,15 @@ function LanguageScreen({ language, setLanguage }) {
     <div className="pb-24">
       <TopBar title="Language" />
       <div className="px-4 mt-4">
-        <p className="text-sm text-slate-500 mb-3">
+        <p className="text-sm text-stone-500 mb-3">
           Choose your language. All lifeguard alerts and live broadcasts will be translated instantly.
         </p>
 
-        <div className="bg-white rounded-xl ring-1 ring-slate-100 p-3.5 mb-4">
-          <p className="text-xs font-bold uppercase text-slate-400 mb-1.5">Preview</p>
-          <p className="text-sm text-slate-800">{preview.text}</p>
+        <div className="bg-white rounded-xl ring-1 ring-stone-100 p-3.5 mb-4">
+          <p className="text-xs font-bold uppercase text-stone-400 mb-1.5">Preview</p>
+          <p className="text-sm text-stone-800">{preview.text}</p>
           {preview.isFallback && (
-            <p className="text-xs text-slate-400 mt-1.5 italic">Showing original English — translation not yet available for this phrase.</p>
+            <p className="text-xs text-stone-400 mt-1.5 italic">Showing original English — translation not yet available for this phrase.</p>
           )}
         </div>
 
@@ -467,17 +457,17 @@ function LanguageScreen({ language, setLanguage }) {
                 key={l.code}
                 onClick={() => setLanguage(l.code)}
                 className={`w-full flex items-center justify-between rounded-xl p-3.5 ring-1 ${
-                  active ? "bg-blue-50 ring-blue-300" : "bg-white ring-slate-100"
+                  active ? "bg-blue-50 ring-blue-300" : "bg-white ring-stone-100"
                 }`}
               >
                 <div className="text-left">
-                  <p className="font-semibold text-slate-800">{l.native}</p>
-                  <p className="text-xs text-slate-400">{l.label}</p>
+                  <p className="font-semibold text-stone-800">{l.native}</p>
+                  <p className="text-xs text-stone-400">{l.label}</p>
                 </div>
                 {active ? (
                   <CheckCircle2 className="w-5 h-5 text-blue-700" />
                 ) : (
-                  <Circle className="w-5 h-5 text-slate-200" />
+                  <Circle className="w-5 h-5 text-stone-200" />
                 )}
               </button>
             );
@@ -561,7 +551,7 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
       <TopBar title="Push Alerts" onBack={onBack} />
       <div className="px-4 mt-4">
         {!supported && (
-          <div className="bg-slate-100 text-slate-500 rounded-xl p-3.5 text-sm mb-4">
+          <div className="bg-stone-100 text-stone-500 rounded-xl p-3.5 text-sm mb-4">
             Push notifications aren't supported in this browser. You'll still see in-app alert banners while using the app.
           </div>
         )}
@@ -571,19 +561,19 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
           </div>
         )}
 
-        <div className="bg-white rounded-2xl p-4 ring-1 ring-slate-100 flex items-center justify-between mb-4">
+        <div className="bg-white rounded-2xl p-4 ring-1 ring-stone-100 flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${notifyEnabled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${notifyEnabled ? "bg-blue-100 text-blue-700" : "bg-stone-100 text-stone-400"}`}>
               {notifyEnabled ? <BellRing className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
             </div>
             <div>
-              <p className="font-bold text-slate-800">Push alerts</p>
-              <p className="text-xs text-slate-400">Get notified the moment a lifeguard publishes an alert</p>
+              <p className="font-bold text-stone-800">Push alerts</p>
+              <p className="text-xs text-stone-400">Get notified the moment a lifeguard publishes an alert</p>
             </div>
           </div>
           <button
             onClick={onToggle}
-            className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${notifyEnabled ? "bg-blue-700 justify-end" : "bg-slate-200 justify-start"}`}
+            className={`w-12 h-7 rounded-full flex items-center px-1 transition-colors ${notifyEnabled ? "bg-blue-700 justify-end" : "bg-stone-200 justify-start"}`}
             aria-label="Toggle push alerts"
           >
             <span className="w-5 h-5 rounded-full bg-white shadow" />
@@ -591,30 +581,30 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
         </div>
 
         {notifyEnabled && (
-          <div className="bg-white rounded-2xl p-4 ring-1 ring-slate-100 mb-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Notify me about</p>
+          <div className="bg-white rounded-2xl p-4 ring-1 ring-stone-100 mb-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Notify me about</p>
             <div className="space-y-2">
               <button
                 onClick={() => setNotifyTarget("nearest")}
-                className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "nearest" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-slate-50"}`}
+                className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "nearest" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-stone-50"}`}
               >
-                <span className="text-sm font-semibold text-slate-800">My nearest beach only</span>
+                <span className="text-sm font-semibold text-stone-800">My nearest beach only</span>
                 {notifyTarget === "nearest" && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
               </button>
               <button
                 onClick={() => setNotifyTarget("all")}
-                className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "all" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-slate-50"}`}
+                className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "all" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-stone-50"}`}
               >
-                <span className="text-sm font-semibold text-slate-800">All patrolled beaches</span>
+                <span className="text-sm font-semibold text-stone-800">All patrolled beaches</span>
                 {notifyTarget === "all" && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
               </button>
               {beaches.map((b) => (
                 <button
                   key={b.id}
                   onClick={() => setNotifyTarget(b.id)}
-                  className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === b.id ? "bg-blue-50 ring-1 ring-blue-300" : "bg-slate-50"}`}
+                  className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === b.id ? "bg-blue-50 ring-1 ring-blue-300" : "bg-stone-50"}`}
                 >
-                  <span className="text-sm font-semibold text-slate-800">{b.name} only</span>
+                  <span className="text-sm font-semibold text-stone-800">{b.name} only</span>
                   {notifyTarget === b.id && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
                 </button>
               ))}
@@ -625,7 +615,7 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
         {notifyEnabled && (
           <button
             onClick={onTest}
-            className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-700 rounded-xl py-3 font-bold text-sm"
+            className="w-full flex items-center justify-center gap-2 bg-stone-100 text-stone-700 rounded-xl py-3 font-bold text-sm"
           >
             <Bell className="w-4 h-4" /> Send a test alert
           </button>
@@ -736,7 +726,7 @@ export default function TouristApp() {
   }
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-slate-50 font-sans relative">
+    <div className="max-w-md mx-auto min-h-screen bg-stone-50 font-sans relative">
       <AlertToast toast={toast} onDismiss={() => setToast(null)} />
 
       {screen === "home" && (

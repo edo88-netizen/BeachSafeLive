@@ -87,7 +87,7 @@ export default function BeachMap({
         {mapFeatures.swimZone && (
           <Polygon
             positions={mapFeatures.swimZone.points}
-            pathOptions={{ color: "#10b981", weight: 2, fillColor: "#10b981", fillOpacity: 0.22 }}
+            pathOptions={{ color: "#0d9488", weight: 2, fillColor: "#0d9488", fillOpacity: 0.22 }}
           />
         )}
 

@@ -72,6 +72,24 @@ beachsafe-app/
         └── AdminApp.jsx
 ```
 
+## Design system
+
+A visual polish pass gave the app a more distinctive, less "generic app"
+identity, grounded in real surf lifesaving:
+
+- **Signature element**: the flag status indicator (`src/components/FlagIcon.jsx`)
+  is now a real pennant silhouette with a wind-blown wavy edge, not a flat
+  two-color rectangle — used everywhere a flag status appears in either app.
+- **Type system**: Archivo (bold, wide — reads like real beach safety
+  signage) for headings, Inter for body copy, and IBM Plex Mono for numeric
+  readouts (wave height, wind, UV, PIN pad) to give safety data an
+  "instrument panel" feel that's visually distinct from ordinary text.
+- **Palette**: warm stone neutrals instead of cool corporate gray (evokes
+  sand rather than a generic dashboard), and teal instead of emerald for
+  the "safe/patrolled" accent (reads more like reef water). Danger red,
+  caution amber, and the flag colors themselves were kept as-is since they
+  already matched real lifesaving convention.
+
 ## Interactive beach maps
 
 Both apps now show a real satellite map (via Leaflet + Esri World Imagery —
