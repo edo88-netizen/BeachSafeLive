@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   MapPin, Waves, Radio, Languages, AlertTriangle, Phone, ChevronLeft,
   Wind, Thermometer, Sun, Clock, Megaphone, ShieldAlert, CheckCircle2,
-  Circle, ChevronRight, Volume2, Navigation, Users, Info, Bell, BellRing, BellOff, X
+  Circle, ChevronRight, Volume2, Navigation, Users, Info, Bell, BellRing, BellOff, X,
+  Box, Maximize2, User,
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
@@ -10,6 +11,7 @@ import { useBeachData } from "../store/BeachDataContext";
 import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime, calculateDistanceKm } from "../store/beachData";
 import { useGeolocation } from "../hooks/useGeolocation";
 import BeachMap from "../components/BeachMap"; // also loads leaflet's CSS as a side effect
+import Beach3DView from "../components/Beach3DView";
 import FlagIcon from "../components/FlagIcon";
 
 /* ============================================================================
@@ -172,10 +174,19 @@ function LocationBanner({ geo }) {
   );
 }
 
+const NEARBY_RADIUS_KM = 10;
+
 function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications, notifyEnabled }) {
+  const [showAllNationwide, setShowAllNationwide] = useState(false);
   const beachesWithDistance = withLiveDistance(beaches, geo);
   const sorted = [...beachesWithDistance].sort((a, b) => a.liveDistanceKm - b.liveDistanceKm);
   const nearest = sorted[0];
+
+  const hasRealLocation = geo.status === "granted";
+  const nearby = hasRealLocation ? sorted.filter((b) => b.liveDistanceKm <= NEARBY_RADIUS_KM) : [];
+  // Without real GPS we can't honestly claim "within 10km" — fall back to
+  // showing the closest few estimated-distance beaches instead.
+  const fallbackNearby = sorted.slice(0, 5);
 
   return (
     <div className="pb-24">
@@ -228,10 +239,20 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
         </button>
       </div>
 
+      {/* Beaches within 10km — the main "what's near me" list */}
       <div className="px-4 mt-6">
-        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">All patrolled beaches</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">
+          {hasRealLocation ? `Beaches within ${NEARBY_RADIUS_KM} km` : "Closest beaches (estimated)"}
+        </p>
+
+        {hasRealLocation && nearby.length === 0 && (
+          <div className="bg-white rounded-xl p-4 ring-1 ring-stone-100 text-sm text-stone-500 flex items-center gap-2">
+            <MapPin className="w-4 h-4 shrink-0" /> No patrolled beaches within {NEARBY_RADIUS_KM} km of your location.
+          </div>
+        )}
+
         <div className="space-y-2">
-          {sorted.map((b) => (
+          {(hasRealLocation ? nearby : fallbackNearby).map((b) => (
             <button
               key={b.id}
               onClick={() => onSelectBeach(b.id)}
@@ -249,15 +270,49 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
           ))}
         </div>
       </div>
+
+      {/* Full nationwide list — collapsed by default so the near-me list stays the focus */}
+      <div className="px-4 mt-6">
+        <button
+          onClick={() => setShowAllNationwide((v) => !v)}
+          className="w-full flex items-center justify-between bg-white rounded-xl p-3.5 ring-1 ring-stone-100 text-sm font-bold text-blue-800"
+        >
+          <span>{showAllNationwide ? "Hide" : `Show all ${sorted.length} patrolled beaches nationwide`}</span>
+          <ChevronRight className={`w-4 h-4 transition-transform ${showAllNationwide ? "rotate-90" : ""}`} />
+        </button>
+
+        {showAllNationwide && (
+          <div className="space-y-2 mt-2">
+            {sorted.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => onSelectBeach(b.id)}
+                className="w-full text-left bg-white rounded-xl p-3.5 shadow-sm ring-1 ring-stone-100 flex items-center justify-between active:bg-stone-50"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <FlagIcon status={b.flagStatus} />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-stone-800 truncate">{b.name}</p>
+                    <p className="text-xs text-stone-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km away</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 /* ---- Beach detail ---- */
 
-function BeachDetailScreen({ beach, onBack, onGoLive, userLocation }) {
+function BeachDetailScreen({ beach, onBack, onGoLive, onView3D, userLocation }) {
   const cfg = FLAG_STATUS[beach.flagStatus];
   const mapFeatures = beach.mapFeatures || { swimZone: null, closedZones: [], hazardMarkers: [] };
+  const [fullscreen, setFullscreen] = useState(false);
+
   return (
     <div className="pb-24">
       <TopBar title={beach.name} onBack={onBack} />
@@ -273,9 +328,23 @@ function BeachDetailScreen({ beach, onBack, onGoLive, userLocation }) {
       </div>
 
       <div className="px-4 mt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Beach map</p>
-        <div className="rounded-2xl overflow-hidden ring-1 ring-stone-200" style={{ height: 260 }}>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400">Beach map</p>
+          <button
+            onClick={() => onView3D(beach.id)}
+            className="flex items-center gap-1.5 text-xs font-bold text-blue-800 bg-blue-50 rounded-full px-2.5 py-1"
+          >
+            <Box className="w-3.5 h-3.5" /> View in 3D
+          </button>
+        </div>
+        <div className="relative rounded-2xl overflow-hidden ring-1 ring-stone-200" style={{ height: 380 }}>
           <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} />
+          <button
+            onClick={() => setFullscreen(true)}
+            className="absolute bottom-3 right-3 z-[1000] flex items-center gap-1.5 bg-white/95 text-stone-700 rounded-full px-3 py-1.5 text-xs font-bold shadow"
+          >
+            <Maximize2 className="w-3.5 h-3.5" /> Expand
+          </button>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1">
           {mapFeatures.swimZone && (
@@ -348,6 +417,18 @@ function BeachDetailScreen({ beach, onBack, onGoLive, userLocation }) {
           <Megaphone className="w-5 h-5" /> Live lifeguard alerts & broadcast
         </button>
       </div>
+
+      {fullscreen && (
+        <div className="fixed inset-0 z-[2000] bg-black">
+          <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} />
+          <button
+            onClick={() => setFullscreen(false)}
+            className="absolute top-4 right-4 z-[2001] flex items-center gap-1.5 bg-white text-stone-800 rounded-full px-3 py-2 text-sm font-bold shadow-lg"
+          >
+            <X className="w-4 h-4" /> Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -544,12 +625,92 @@ function EmergencyScreen({ beach, onBack }) {
 // push. The toast banner is the guaranteed-visible part; the OS notification
 // is a bonus that depends on browser permission and focus state.
 
-function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, setNotifyTarget, permission, onTest, onBack }) {
+/* ---- Tourist profile — deliberately lightweight: name only, no password.
+   Tourists have nothing sensitive to protect, so this is personalization,
+   not security. Stored in localStorage only (this device, this browser). ---- */
+
+const PROFILE_KEY = "beachsafe-tourist-profile";
+
+function loadTouristProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function WelcomeScreen({ existing, onSubmit }) {
+  const [name, setName] = useState(existing?.name || "");
+  const [country, setCountry] = useState(existing?.country || "");
+
+  function submit(profile) {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { /* non-fatal */ }
+    onSubmit(profile);
+  }
+
+  return (
+    <div className="min-h-screen bg-blue-950 flex flex-col items-center justify-center p-6">
+      <div className="flex items-center gap-2 text-white mb-2">
+        <User className="w-7 h-7" />
+        <span className="font-display text-2xl font-extrabold tracking-tight">Welcome to BeachSafe</span>
+      </div>
+      <p className="text-blue-200 text-sm mb-8 text-center max-w-xs">
+        Tell us your name so we can personalize your alerts — no password needed, this stays on your device.
+      </p>
+
+      <div className="w-full max-w-xs space-y-3">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+          className="w-full rounded-xl px-4 py-3 text-stone-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <input
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          placeholder="Home country (optional)"
+          className="w-full rounded-xl px-4 py-3 text-stone-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <button
+          onClick={() => submit({ name: name.trim() || "Guest", country: country.trim(), isGuest: false })}
+          disabled={!name.trim()}
+          className="w-full bg-white text-blue-900 rounded-xl py-3 font-bold disabled:opacity-40"
+        >
+          Continue
+        </button>
+        <button
+          onClick={() => submit({ name: "Guest", country: "", isGuest: true })}
+          className="w-full text-blue-200 text-sm font-semibold py-2"
+        >
+          Continue as Guest
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, setNotifyTarget, permission, onTest, onBack, profile, onEditProfile }) {
   const supported = permission !== "unsupported";
   return (
     <div className="pb-24">
-      <TopBar title="Push Alerts" onBack={onBack} />
+      <TopBar title="Settings" onBack={onBack} />
       <div className="px-4 mt-4">
+        <div className="bg-white rounded-2xl p-4 ring-1 ring-stone-100 flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-stone-800">{profile?.isGuest ? "Guest" : profile?.name || "Guest"}</p>
+              <p className="text-xs text-stone-400">{profile?.country ? `From ${profile.country}` : "No profile details set"}</p>
+            </div>
+          </div>
+          <button onClick={onEditProfile} className="text-xs font-bold text-blue-700 bg-blue-50 rounded-full px-3 py-1.5">
+            Edit
+          </button>
+        </div>
+
         {!supported && (
           <div className="bg-stone-100 text-stone-500 rounded-xl p-3.5 text-sm mb-4">
             Push notifications aren't supported in this browser. You'll still see in-app alert banners while using the app.
@@ -649,7 +810,8 @@ function AlertToast({ toast, onDismiss }) {
 export default function TouristApp() {
   const { beaches, alerts, liveByBeach, activeAlertsForBeach } = useBeachData();
   const geo = useGeolocation();
-  const [screen, setScreen] = useState("home");
+  const [profile, setProfile] = useState(loadTouristProfile);
+  const [screen, setScreen] = useState(() => (loadTouristProfile() ? "home" : "welcome"));
   const [previousScreen, setPreviousScreen] = useState("home");
   const [selectedBeachId, setSelectedBeachId] = useState(null);
   const [language, setLanguage] = useState("en");
@@ -726,8 +888,15 @@ export default function TouristApp() {
   }
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-stone-50 font-sans relative">
-      <AlertToast toast={toast} onDismiss={() => setToast(null)} />
+    <div className="max-w-md mx-auto min-h-screen bg-sand-50 font-sans relative">
+      {screen === "welcome" && (
+        <WelcomeScreen
+          existing={profile}
+          onSubmit={(p) => { setProfile(p); goTo("home"); }}
+        />
+      )}
+
+      {screen !== "welcome" && <AlertToast toast={toast} onDismiss={() => setToast(null)} />}
 
       {screen === "home" && (
         <HomeScreen
@@ -749,6 +918,8 @@ export default function TouristApp() {
           setNotifyTarget={setNotifyTarget}
           permission={permission}
           onTest={handleTestAlert}
+          profile={profile}
+          onEditProfile={() => goTo("welcome")}
           onBack={() => goTo(previousScreen === "notifications" ? "home" : previousScreen)}
         />
       )}
@@ -758,8 +929,13 @@ export default function TouristApp() {
           beach={selectedBeach}
           onBack={() => goTo("home")}
           onGoLive={() => goTo("live")}
+          onView3D={() => goTo("beach3d")}
           userLocation={geo.status === "granted" && geo.coords ? geo.coords : null}
         />
+      )}
+
+      {screen === "beach3d" && selectedBeach && (
+        <Beach3DView beach={selectedBeach} onBack={() => goTo("detail")} />
       )}
 
       {screen === "live" && (
@@ -781,7 +957,7 @@ export default function TouristApp() {
         <EmergencyScreen beach={selectedBeach} onBack={() => goTo(previousScreen === "emergency" ? "home" : previousScreen)} />
       )}
 
-      {screen !== "emergency" && (
+      {screen !== "emergency" && screen !== "beach3d" && screen !== "welcome" && (
         <>
           <SOSButton onClick={() => goTo("emergency")} />
           <BottomNav screen={["detail", "notifications"].includes(screen) ? "home" : screen} setScreen={goTo} />

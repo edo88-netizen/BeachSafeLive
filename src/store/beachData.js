@@ -17,6 +17,21 @@ export const USERS = [
   { id: "u3", name: "Priya Nair", pin: "3456", role: "Patrol Supervisor", assignedBeachIds: ["bondi", "manly", "stkilda"] },
 ];
 
+// Generates a simple rectangular swim zone centered on a beach's coordinates,
+// for beaches that haven't had a custom shape hand-drawn by an admin yet.
+// Real, hand-drawn zones (like Bondi's) still take precedence wherever set.
+function makeSwimZone(lat, lng, halfWidthDeg = 0.0012) {
+  return {
+    id: `sz-${lat}-${lng}`,
+    points: [
+      [lat - halfWidthDeg, lng - halfWidthDeg],
+      [lat - halfWidthDeg, lng + halfWidthDeg],
+      [lat + halfWidthDeg, lng + halfWidthDeg],
+      [lat + halfWidthDeg, lng - halfWidthDeg],
+    ],
+  };
+}
+
 // Real coordinates so distance can be computed from the user's actual GPS
 // position. `distanceKm` below is only a fallback shown before location is
 // available (or if it's denied/unsupported) — see calculateDistanceKm().
@@ -79,7 +94,7 @@ export const INITIAL_BEACHES = [
     id: "surfers", name: "Surfers Paradise", state: "QLD", lat: -28.0023, lng: 153.4145, distanceKm: 22.1, flagStatus: "closed",
     hazards: ["Dangerous surf — beach closed to swimmers", "Lightning risk"],
     conditions: { waveHeightM: 2.4, waterTempC: 24, uvIndex: 10, windKmh: 32, windDir: "NE" },
-    patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 8, lastUpdated: "Just now", adminManaged: false,
+    patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 8, lastUpdated: "Just now", adminManaged: true,
     mapFeatures: {
       swimZone: null,
       closedZones: [{ id: "cz-surfers-1", points: [[-28.0010, 153.4133], [-28.0010, 153.4157], [-28.0036, 153.4157], [-28.0036, 153.4133]] }],
@@ -88,6 +103,136 @@ export const INITIAL_BEACHES = [
         { id: "hm-surfers-2", lat: -28.0016, lng: 153.4140, type: "other", label: "Lightning risk — seek shelter immediately" },
       ],
     },
+  },
+  {
+    id: "bronte", name: "Bronte Beach", state: "NSW", lat: -33.9026, lng: 151.2645, distanceKm: 2.4, flagStatus: "patrolled",
+    hazards: ["Rocky points at both ends of the beach"],
+    conditions: { waveHeightM: 1.0, waterTempC: 21, uvIndex: 8, windKmh: 16, windDir: "NE" },
+    patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 3, lastUpdated: "6 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-33.9026, 151.2645), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "coogee", name: "Coogee Beach", state: "NSW", lat: -33.9205, lng: 151.2577, distanceKm: 4.1, flagStatus: "patrolled",
+    hazards: ["Occasional bluebottles"],
+    conditions: { waveHeightM: 0.9, waterTempC: 21, uvIndex: 8, windKmh: 15, windDir: "E" },
+    patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 4, lastUpdated: "9 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-33.9205, 151.2577), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "cronulla", name: "Cronulla Beach", state: "NSW", lat: -34.0287, lng: 151.1522, distanceKm: 18.9, flagStatus: "patrolled",
+    hazards: ["Rip currents near the Point"],
+    conditions: { waveHeightM: 1.1, waterTempC: 20, uvIndex: 8, windKmh: 20, windDir: "SE" },
+    patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 5, lastUpdated: "4 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-34.0287, 151.1522), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "maroubra", name: "Maroubra Beach", state: "NSW", lat: -33.9500, lng: 151.2577, distanceKm: 7.6, flagStatus: "caution",
+    hazards: ["Strong rip currents — Sydney's most rip-prone beach"],
+    conditions: { waveHeightM: 1.4, waterTempC: 20, uvIndex: 8, windKmh: 22, windDir: "E" },
+    patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 4, lastUpdated: "3 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-33.9500, 151.2577), closedZones: [], hazardMarkers: [
+      { id: "hm-maroubra-1", lat: -33.9508, lng: 151.2584, type: "rip", label: "Persistent rip current — swim between the flags only" },
+    ] },
+  },
+  {
+    id: "newcastle", name: "Newcastle Beach", state: "NSW", lat: -32.9283, lng: 151.7817, distanceKm: 162.0, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 1.3, waterTempC: 19, uvIndex: 7, windKmh: 19, windDir: "NE" },
+    patrolHours: "7:00 AM – 6:00 PM", lifeguardsOnDuty: 4, lastUpdated: "12 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-32.9283, 151.7817), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "wollongong", name: "North Wollongong Beach", state: "NSW", lat: -34.4145, lng: 150.8994, distanceKm: 84.0, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 1.0, waterTempC: 19, uvIndex: 7, windKmh: 17, windDir: "S" },
+    patrolHours: "9:00 AM – 5:00 PM", lifeguardsOnDuty: 3, lastUpdated: "20 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-34.4145, 150.8994), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "brighton", name: "Brighton Beach", state: "VIC", lat: -37.9061, lng: 145.0011, distanceKm: 11.2, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 0.3, waterTempC: 16, uvIndex: 5, windKmh: 13, windDir: "S" },
+    patrolHours: "11:00 AM – 5:00 PM", lifeguardsOnDuty: 2, lastUpdated: "15 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-37.9061, 145.0011), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "torquay", name: "Torquay Beach", state: "VIC", lat: -38.3350, lng: 144.3250, distanceKm: 96.0, flagStatus: "caution",
+    hazards: ["Powerful surf breaks nearby — experienced surfers only outside flags"],
+    conditions: { waveHeightM: 1.8, waterTempC: 15, uvIndex: 6, windKmh: 26, windDir: "SW" },
+    patrolHours: "10:30 AM – 5:00 PM", lifeguardsOnDuty: 3, lastUpdated: "7 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-38.3350, 144.3250), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "burleigh", name: "Burleigh Heads Beach", state: "QLD", lat: -28.0958, lng: 153.4489, distanceKm: 78.0, flagStatus: "patrolled",
+    hazards: ["Rocky headland at southern end"],
+    conditions: { waveHeightM: 1.2, waterTempC: 25, uvIndex: 10, windKmh: 18, windDir: "E" },
+    patrolHours: "7:00 AM – 5:00 PM", lifeguardsOnDuty: 5, lastUpdated: "5 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-28.0958, 153.4489), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "noosa", name: "Noosa Main Beach", state: "QLD", lat: -26.3985, lng: 153.0925, distanceKm: 145.0, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 0.6, waterTempC: 25, uvIndex: 10, windKmh: 14, windDir: "NE" },
+    patrolHours: "7:00 AM – 5:00 PM", lifeguardsOnDuty: 4, lastUpdated: "10 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-26.3985, 153.0925), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "mooloolaba", name: "Mooloolaba Beach", state: "QLD", lat: -26.6822, lng: 153.1157, distanceKm: 100.0, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 0.8, waterTempC: 24, uvIndex: 9, windKmh: 16, windDir: "E" },
+    patrolHours: "7:00 AM – 5:00 PM", lifeguardsOnDuty: 4, lastUpdated: "8 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-26.6822, 153.1157), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "coolangatta", name: "Coolangatta Beach", state: "QLD", lat: -28.1667, lng: 153.5378, distanceKm: 95.0, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 1.0, waterTempC: 24, uvIndex: 9, windKmh: 17, windDir: "E" },
+    patrolHours: "7:00 AM – 5:00 PM", lifeguardsOnDuty: 4, lastUpdated: "14 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-28.1667, 153.5378), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "scarborough", name: "Scarborough Beach", state: "WA", lat: -31.8946, lng: 115.7581, distanceKm: 12.0, flagStatus: "patrolled",
+    hazards: ["Strong swell popular with surfers — care advised for swimmers"],
+    conditions: { waveHeightM: 1.5, waterTempC: 20, uvIndex: 8, windKmh: 22, windDir: "SW" },
+    patrolHours: "8:00 AM – 6:00 PM", lifeguardsOnDuty: 4, lastUpdated: "6 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-31.8946, 115.7581), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "citybeach", name: "City Beach", state: "WA", lat: -31.9410, lng: 115.7590, distanceKm: 15.5, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 0.7, waterTempC: 20, uvIndex: 7, windKmh: 19, windDir: "SW" },
+    patrolHours: "8:00 AM – 6:00 PM", lifeguardsOnDuty: 3, lastUpdated: "11 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-31.9410, 115.7590), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "glenelg", name: "Glenelg Beach", state: "SA", lat: -34.9805, lng: 138.5178, distanceKm: 11.0, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 0.3, waterTempC: 18, uvIndex: 6, windKmh: 15, windDir: "SW" },
+    patrolHours: "11:00 AM – 5:00 PM", lifeguardsOnDuty: 2, lastUpdated: "16 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-34.9805, 138.5178), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "henley", name: "Henley Beach", state: "SA", lat: -34.9210, lng: 138.4970, distanceKm: 13.5, flagStatus: "patrolled",
+    hazards: [],
+    conditions: { waveHeightM: 0.3, waterTempC: 18, uvIndex: 6, windKmh: 14, windDir: "SW" },
+    patrolHours: "11:00 AM – 5:00 PM", lifeguardsOnDuty: 2, lastUpdated: "19 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-34.9210, 138.4970), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "clifton", name: "Clifton Beach", state: "TAS", lat: -43.0167, lng: 147.5167, distanceKm: 22.0, flagStatus: "patrolled",
+    hazards: ["Cold water year-round — hypothermia risk for long swims"],
+    conditions: { waveHeightM: 1.1, waterTempC: 14, uvIndex: 4, windKmh: 21, windDir: "S" },
+    patrolHours: "11:00 AM – 5:00 PM (summer weekends)", lifeguardsOnDuty: 2, lastUpdated: "25 min ago", adminManaged: true,
+    mapFeatures: { swimZone: makeSwimZone(-43.0167, 147.5167), closedZones: [], hazardMarkers: [] },
+  },
+  {
+    id: "casuarina", name: "Casuarina Beach", state: "NT", lat: -12.3833, lng: 130.8730, distanceKm: 3150.0, flagStatus: "caution",
+    hazards: ["Marine stinger season (Oct–May) — wear a stinger suit", "Crocodile sightings possible — check signage before swimming"],
+    conditions: { waveHeightM: 0.2, waterTempC: 29, uvIndex: 11, windKmh: 12, windDir: "NE" },
+    patrolHours: "6:00 AM – 6:00 PM", lifeguardsOnDuty: 2, lastUpdated: "13 min ago", adminManaged: true,
+    mapFeatures: { swimZone: null, closedZones: [], hazardMarkers: [
+      { id: "hm-casuarina-1", lat: -12.3840, lng: 130.8738, type: "marine", label: "Crocodile warning — check with lifeguards before entering the water" },
+    ] },
   },
 ];
 

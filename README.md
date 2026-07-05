@@ -72,6 +72,55 @@ beachsafe-app/
         └── AdminApp.jsx
 ```
 
+## Accounts
+
+Both apps now have account creation:
+
+- **Tourists**: a lightweight, name-only "profile" (no password) shown on
+  first launch, with a "Continue as Guest" option. This is personalization
+  (greeting, remembering preferences), not security — tourists have no
+  sensitive data to protect, so a password would just add friction for no
+  real benefit.
+- **Lifesavers**: real self-service sign-up (name, 4-digit PIN, role, and
+  which beaches you manage) from the Admin login screen ("New lifesaver?
+  Create an account"). **Important**: PINs are stored in this browser's
+  localStorage in plain form — fine for a prototype, not how real
+  credentials should be handled. Production auth needs server-side password
+  hashing, real sessions, and a real database (the "real backend" noted
+  elsewhere as future work).
+
+State (including new accounts) now also **persists across page reloads**
+via localStorage, in addition to the existing cross-tab sync — so creating
+an account actually means something now, not just for the current session.
+
+## Nationwide beaches + 10km radius
+
+The beach list now includes 23 real, named Australian beaches spanning
+every state and the NT — not literally every patrolled beach in the country
+(there are hundreds of surf lifesaving clubs), but a representative
+nationwide spread. A real production version would pull from Surf Life
+Saving Australia's official data feed instead of this hand-curated list.
+
+The tourist Home screen now shows beaches within a 10km radius by default
+(computed from real GPS when available), with a collapsible "show all
+beaches nationwide" section underneath. Without GPS permission, it falls
+back to showing the closest few beaches by estimated distance rather than
+claiming a radius it can't actually verify.
+
+## 3D Beach View
+
+Each beach detail screen now has a "View in 3D" button and a bigger,
+expandable 2D map. The 3D view (`src/components/Beach3DView.jsx`, built with
+Three.js) is a **stylized, schematic representation** — sand and water
+planes with the same hazard markers and zone outlines as the 2D map,
+rendered in 3D with drag-to-look-around, scroll-to-zoom controls.
+
+**This is not photographic Street View of the real beach.** True
+photographic 3D exploration would require real 360°/drone imagery captured
+per beach, which is out of scope for this prototype. What's built instead
+is honest and still useful: the exact same safety data an admin drew on the
+2D map, explorable in 3D.
+
 ## Design system
 
 A visual polish pass gave the app a more distinctive, less "generic app"
@@ -120,6 +169,10 @@ in `src/components/BeachMap.jsx` only needs its `TileLayer` URL changed.
 | Sarah Chen  | 1234 | Lifesaver          | Bondi Beach                 |
 | Jake Wilson | 2345 | Lifesaver          | Manly Beach                 |
 | Priya Nair  | 3456 | Patrol Supervisor  | Bondi, Manly, St Kilda       |
+
+These three seed accounts always exist. Anyone can also create a new
+lifesaver account from the login screen and pick from any of the 23
+nationwide beaches to manage — see the Accounts section above.
 
 ## Pushing this to GitHub
 

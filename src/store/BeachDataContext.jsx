@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { INITIAL_BEACHES, SEVERITY_FLAG_EFFECT, SEVERITY, FLAG_STATUS } from "./beachData";
+import { INITIAL_BEACHES, USERS, SEVERITY_FLAG_EFFECT, SEVERITY, FLAG_STATUS } from "./beachData";
 
 /* ============================================================================
    This is what makes the two apps "connected": AdminApp and TouristApp both
@@ -7,31 +7,55 @@ import { INITIAL_BEACHES, SEVERITY_FLAG_EFFECT, SEVERITY, FLAG_STATUS } from "./
    alert in the admin composer and it appears instantly in the tourist app's
    live broadcast screen.
 
+   PERSISTENCE: state is now saved to localStorage, so beaches, alerts, and
+   lifesaver accounts survive a page reload — not just cross-tab sync. This
+   is what makes "creating an account" mean something (it's still there
+   after you refresh).
+
    CROSS-TAB SYNC: a BroadcastChannel keeps every open tab/window of the SAME
-   browser in sync (e.g. Admin in one tab, Tourist in another) — this is what
-   makes local testing across two tabs actually work. A freshly opened tab
-   asks "does anyone already have data?" instead of asserting its own
-   defaults, so it doesn't wipe out an existing session.
+   browser in sync in real time. A freshly opened tab asks "does anyone
+   already have data?" instead of asserting its own defaults, so it doesn't
+   wipe out an existing session.
 
    WHAT THIS DOESN'T DO: sync across different browsers, devices, or
-   computers. BroadcastChannel is same-browser-only by design. Real
-   cross-device sync needs a backend (database + WebSocket or push), which
-   is the actual production architecture — this is a realistic stand-in for
-   local development and demos.
+   computers. Both localStorage and BroadcastChannel are same-browser-only
+   by design. Real cross-device sync needs a backend (database + WebSocket
+   or push) — this is a realistic stand-in for local development and demos.
+
+   ACCOUNT SECURITY: lifesaver PINs are stored here in plain form, in the
+   browser's own localStorage — fine for a prototype, NOT how real
+   credentials should be handled. Production auth needs server-side password
+   hashing, real sessions, and a real database, which is exactly the "real
+   backend" noted elsewhere as future work.
    ============================================================================ */
 
 const BeachDataContext = createContext(null);
 const CHANNEL_NAME = "beachsafe-sync-v1";
+const STORAGE_KEY = "beachsafe-state-v1";
 
-const initialState = {
+const defaultState = {
   beaches: INITIAL_BEACHES,
   alerts: [],
   auditLog: [],
   liveByBeach: {},
+  users: USERS,
 };
 
+function loadInitialState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState;
+    const parsed = JSON.parse(raw);
+    // Merge with defaults so any new fields added later (e.g. a new beach)
+    // still show up even for a browser that has old saved data.
+    return { ...defaultState, ...parsed };
+  } catch {
+    return defaultState;
+  }
+}
+
 export function BeachDataProvider({ children }) {
-  const [state, setState] = useState(initialState);
+  const [state, setState] = useState(loadInitialState);
   const [now, setNow] = useState(Date.now());
 
   // Always-current reference to state, used inside the message handler
@@ -66,10 +90,16 @@ export function BeachDataProvider({ children }) {
     return () => channel.close();
   }, []);
 
-  // Broadcast every LOCAL state change to other tabs. Changes that arrived
-  // FROM another tab are flagged so we don't immediately echo them back
-  // (which would otherwise cause an infinite ping-pong between tabs).
+  // Broadcast every LOCAL state change to other tabs, and persist it so it
+  // survives a reload. Changes that arrived FROM another tab are flagged so
+  // we don't immediately echo them back (avoiding an infinite ping-pong).
   useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // localStorage can throw in rare cases (private browsing quota, etc.)
+      // — non-fatal, the app just falls back to in-memory-only for this session.
+    }
     if (suppressBroadcastRef.current) {
       suppressBroadcastRef.current = false;
       return;
@@ -158,6 +188,34 @@ export function BeachDataProvider({ children }) {
     });
   }, []);
 
+  // Lifesaver self-service sign-up. Validation happens against stateRef
+  // (always current) BEFORE the state update, since setState updaters must
+  // stay pure — we can't safely "return an error" from inside one.
+  const signUpLifesaver = useCallback(({ name, pin, role, assignedBeachIds }) => {
+    const users = stateRef.current.users;
+    if (!name || !name.trim()) return { ok: false, error: "Please enter your name." };
+    if (!/^\d{4}$/.test(pin)) return { ok: false, error: "PIN must be exactly 4 digits." };
+    if (users.some((u) => u.pin === pin)) return { ok: false, error: "That PIN is already in use — please choose another." };
+    if (!assignedBeachIds || assignedBeachIds.length === 0) return { ok: false, error: "Select at least one beach to manage." };
+
+    const newUser = {
+      id: `u-${Date.now()}`,
+      name: name.trim(),
+      pin,
+      role: role || "Lifesaver",
+      assignedBeachIds,
+    };
+    setState((prev) => ({
+      ...prev,
+      users: [...prev.users, newUser],
+      auditLog: addAuditEntry(prev.auditLog, {
+        type: "account_created", actor: newUser.name, beachId: assignedBeachIds[0],
+        summary: `created a lifesaver account assigned to ${assignedBeachIds.length} beach${assignedBeachIds.length > 1 ? "es" : ""}`,
+      }),
+    }));
+    return { ok: true, user: newUser };
+  }, []);
+
   const activeAlertsForBeach = useCallback((beachId) => {
     return state.alerts
       .filter((a) => a.beachId === beachId && !a.resolved && a.expiresAt > now)
@@ -165,8 +223,8 @@ export function BeachDataProvider({ children }) {
   }, [state.alerts, now]);
 
   const value = {
-    beaches: state.beaches, alerts: state.alerts, auditLog: state.auditLog, liveByBeach: state.liveByBeach, now,
-    publishAlert, resolveAlert, toggleLive, setBeachFlag, activeAlertsForBeach, updateMapFeatures,
+    beaches: state.beaches, alerts: state.alerts, auditLog: state.auditLog, liveByBeach: state.liveByBeach, users: state.users, now,
+    publishAlert, resolveAlert, toggleLive, setBeachFlag, activeAlertsForBeach, updateMapFeatures, signUpLifesaver,
   };
 
   return <BeachDataContext.Provider value={value}>{children}</BeachDataContext.Provider>;

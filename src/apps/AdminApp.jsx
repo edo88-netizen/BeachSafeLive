@@ -3,11 +3,11 @@ import {
   LogOut, Lock, ShieldCheck, Radio,
   Send, CheckCircle2, ChevronRight, ScrollText,
   Eye, Mic, MapPin, Languages, Delete, Megaphone, RotateCcw,
-  Map, Trash2, Waves, Ban, Undo2, Flag,
+  Map, Trash2, Waves, Ban, Undo2, Flag, User,
 } from "lucide-react";
 import { useBeachData } from "../store/BeachDataContext";
 import {
-  USERS, PRESETS, SEVERITY, FLAG_STATUS, LANGUAGES, HAZARD_TYPES,
+  PRESETS, SEVERITY, FLAG_STATUS, LANGUAGES, HAZARD_TYPES,
   translateAlert, fmtTime, fmtClock,
 } from "../store/beachData";
 import BeachMap from "../components/BeachMap";
@@ -22,7 +22,7 @@ import FlagIcon from "../components/FlagIcon";
 
 /* ---- Login ---- */
 
-function LoginScreen({ onPicked }) {
+function LoginScreen({ users, onPicked, onSignUp }) {
   return (
     <div className="min-h-screen bg-blue-950 flex flex-col items-center justify-center p-6">
       <div className="flex items-center gap-2 text-white mb-8">
@@ -31,7 +31,7 @@ function LoginScreen({ onPicked }) {
       </div>
       <p className="text-blue-200 mb-6 text-sm">Tap your name to sign in</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-2xl">
-        {USERS.map((u) => (
+        {users.map((u) => (
           <button
             key={u.id}
             onClick={() => onPicked(u)}
@@ -45,6 +45,106 @@ function LoginScreen({ onPicked }) {
             <p className="text-[11px] text-blue-700 font-semibold">{u.assignedBeachIds.length} beach{u.assignedBeachIds.length > 1 ? "es" : ""}</p>
           </button>
         ))}
+      </div>
+      <button onClick={onSignUp} className="mt-8 text-blue-200 text-sm font-semibold underline">
+        New lifesaver? Create an account
+      </button>
+    </div>
+  );
+}
+
+function SignUpScreen({ beaches, onSignUp, onCancel }) {
+  const [name, setName] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [role, setRole] = useState("Lifesaver");
+  const [selectedBeaches, setSelectedBeaches] = useState([]);
+  const [error, setError] = useState(null);
+
+  function toggleBeach(id) {
+    setSelectedBeaches((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function submit() {
+    setError(null);
+    if (pin !== confirmPin) {
+      setError("PINs don't match.");
+      return;
+    }
+    const result = onSignUp({ name, pin, role, assignedBeachIds: selectedBeaches });
+    if (!result.ok) setError(result.error);
+  }
+
+  return (
+    <div className="min-h-screen bg-blue-950 flex flex-col items-center p-6 overflow-y-auto">
+      <div className="flex items-center gap-2 text-white mb-1 mt-6">
+        <ShieldCheck className="w-7 h-7" />
+        <span className="font-display text-xl font-extrabold tracking-tight">Create lifesaver account</span>
+      </div>
+      <p className="text-blue-200 text-sm mb-6 text-center max-w-sm">
+        This is a demo account system — PINs are stored in this browser only, not securely hashed. Real deployment needs a proper backend.
+      </p>
+
+      <div className="w-full max-w-md space-y-3">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Full name"
+          className="w-full rounded-xl px-4 py-3 text-stone-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <div className="flex gap-3">
+          <input
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            placeholder="4-digit PIN"
+            inputMode="numeric"
+            className="font-data w-1/2 rounded-xl px-4 py-3 text-stone-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <input
+            value={confirmPin}
+            onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            placeholder="Confirm PIN"
+            inputMode="numeric"
+            className="font-data w-1/2 rounded-xl px-4 py-3 text-stone-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          {["Lifesaver", "Patrol Supervisor"].map((r) => (
+            <button
+              key={r}
+              onClick={() => setRole(r)}
+              className={`flex-1 rounded-xl py-2.5 text-sm font-bold ${role === r ? "bg-white text-blue-900" : "bg-blue-900 text-blue-200"}`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 max-h-64 overflow-y-auto">
+          <p className="text-xs font-bold uppercase text-stone-400 mb-2">Which beaches will you manage?</p>
+          <div className="space-y-1.5">
+            {beaches.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => toggleBeach(b.id)}
+                className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${selectedBeaches.includes(b.id) ? "bg-blue-50 text-blue-800 font-bold" : "text-stone-600"}`}
+              >
+                <span>{b.name} <span className="text-xs text-stone-400 font-normal">({b.state})</span></span>
+                {selectedBeaches.includes(b.id) && <CheckCircle2 className="w-4 h-4 shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <p className="text-red-300 text-sm font-semibold text-center">{error}</p>}
+
+        <button onClick={submit} className="w-full bg-white text-blue-900 rounded-xl py-3 font-bold">
+          Create account & sign in
+        </button>
+        <button onClick={onCancel} className="w-full text-blue-200 text-sm font-semibold py-2">
+          Cancel
+        </button>
       </div>
     </div>
   );
@@ -102,7 +202,7 @@ function PinScreen({ user, onSuccess, onCancel }) {
 function BeachSelectScreen({ user, beaches, onPick, onLogout }) {
   const assigned = beaches.filter((b) => user.assignedBeachIds.includes(b.id));
   return (
-    <div className="min-h-screen bg-stone-50 p-6">
+    <div className="min-h-screen bg-sand-50 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <p className="text-sm text-stone-400">Signed in as</p>
@@ -148,7 +248,7 @@ function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, on
   ];
 
   return (
-    <div className="min-h-screen bg-stone-50 flex">
+    <div className="min-h-screen bg-sand-50 flex">
       <div className="w-56 bg-blue-950 text-white flex flex-col shrink-0">
         <div className="p-4 border-b border-blue-900">
           <div className="flex items-center gap-2 mb-1">
@@ -539,6 +639,7 @@ function AuditLogPanel({ auditLog, beaches }) {
               {e.type === "broadcast_end" && <Mic className="w-4 h-4 text-stone-400" />}
               {e.type === "map_update" && <Map className="w-4 h-4 text-teal-600" />}
               {e.type === "flag_change" && <Flag className="w-4 h-4 text-amber-600" />}
+              {e.type === "account_created" && <User className="w-4 h-4 text-blue-700" />}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-stone-800">
@@ -627,9 +728,9 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
 /* ---- Root ---- */
 
 export default function AdminApp() {
-  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, setBeachFlag, updateMapFeatures, activeAlertsForBeach } = useBeachData();
+  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, setBeachFlag, updateMapFeatures, activeAlertsForBeach, users, signUpLifesaver } = useBeachData();
 
-  const [screen, setScreen] = useState("login"); // login | pin | beachSelect | room
+  const [screen, setScreen] = useState("login"); // login | signup | pin | beachSelect | room
   const [pendingUser, setPendingUser] = useState(null);
   const [user, setUser] = useState(null);
   const [currentBeachId, setCurrentBeachId] = useState(null);
@@ -640,10 +741,33 @@ export default function AdminApp() {
 
   const currentBeach = beaches.find((b) => b.id === currentBeachId);
 
+  function handleSignUp(payload) {
+    const result = signUpLifesaver(payload);
+    if (result.ok) {
+      // Skip the PIN re-entry step — they just chose it themselves.
+      setUser(result.user);
+      if (result.user.assignedBeachIds.length === 1) {
+        setCurrentBeachId(result.user.assignedBeachIds[0]);
+        setScreen("room");
+      } else {
+        setScreen("beachSelect");
+      }
+    }
+    return result;
+  }
+
   return (
-    <div className="min-h-screen bg-stone-50 font-sans">
+    <div className="min-h-screen bg-sand-50 font-sans">
       {screen === "login" && (
-        <LoginScreen onPicked={(u) => { setPendingUser(u); setScreen("pin"); }} />
+        <LoginScreen
+          users={users}
+          onPicked={(u) => { setPendingUser(u); setScreen("pin"); }}
+          onSignUp={() => setScreen("signup")}
+        />
+      )}
+
+      {screen === "signup" && (
+        <SignUpScreen beaches={beaches} onSignUp={handleSignUp} onCancel={() => setScreen("login")} />
       )}
 
       {screen === "pin" && pendingUser && (
