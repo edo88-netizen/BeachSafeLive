@@ -3,25 +3,29 @@ import {
   MapPin, Waves, Radio, Languages, AlertTriangle, Phone, ChevronLeft,
   Wind, Thermometer, Sun, Clock, Megaphone, ShieldAlert, CheckCircle2,
   Circle, ChevronRight, Volume2, Navigation, Users, Info, Bell, BellRing, BellOff, X,
-  Box, Maximize2, User,
+  Maximize2, User,
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import { useBeachData } from "../store/BeachDataContext";
-import { FLAG_STATUS, LANGUAGES, PRESETS, SEVERITY, translateAlert, fmtTime, calculateDistanceKm } from "../store/beachData";
+import { FLAG_STATUS, PRESETS, SEVERITY, translateAlert, fmtTime, calculateDistanceKm } from "../store/beachData";
 import { useGeolocation } from "../hooks/useGeolocation";
 import BeachMap from "../components/BeachMap"; // also loads leaflet's CSS as a side effect
-import Beach3DView from "../components/Beach3DView";
 import FlagIcon from "../components/FlagIcon";
+import { t, LANGUAGE_NAMES } from "../i18n/i18n";
 
 /* ============================================================================
    This app now reads live data from BeachDataContext (shared with AdminApp)
    instead of its own local mock copy. Anything a lifesaver publishes in the
    admin composer appears here automatically — same state tree, no refresh.
+
+   TRANSLATION: every user-facing string in this file goes through t(language,
+   key). Beach names are intentionally never translated (they're proper
+   nouns, same as "Paris" stays "Paris" in every language). The 3D beach view
+   that used to live here has been removed per feedback that it felt basic
+   and confusing — worth revisiting later with a clearer interaction model.
    ============================================================================ */
 
-// Shared by HomeScreen (sorting) and the push-notification targeting logic
-// below, so "nearest beach" always means the same thing everywhere.
 function withLiveDistance(beaches, geo) {
   return beaches.map((b) => {
     if (geo.status === "granted" && geo.coords) {
@@ -31,8 +35,6 @@ function withLiveDistance(beaches, geo) {
   });
 }
 
-// Hex equivalents of FLAG_STATUS colors — Leaflet draws markers via raw
-// HTML/CSS outside Tailwind's reach, so we need actual hex values here.
 const FLAG_HEX = { patrolled: "#0d9488", caution: "#f59e0b", closed: "#dc2626", unpatrolled: "#a8a29e" };
 
 function overviewDivIcon(status) {
@@ -45,40 +47,28 @@ function overviewDivIcon(status) {
   });
 }
 
-// Real satellite overview showing every beach at once — tap a pin to jump
-// straight to that beach's detail screen.
 function OverviewMap({ beaches, onSelectBeach }) {
   const positions = beaches.map((b) => [b.lat, b.lng]);
   return (
-    <MapContainer
-      bounds={positions}
-      boundsOptions={{ padding: [30, 30] }}
-      style={{ height: "100%", width: "100%" }}
-      scrollWheelZoom={false}
-    >
+    <MapContainer bounds={positions} boundsOptions={{ padding: [30, 30] }} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
       <TileLayer
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         attribution="Tiles &copy; Esri"
         maxZoom={19}
       />
       {beaches.map((b) => (
-        <Marker
-          key={b.id}
-          position={[b.lat, b.lng]}
-          icon={overviewDivIcon(b.flagStatus)}
-          eventHandlers={{ click: () => onSelectBeach(b.id) }}
-        />
+        <Marker key={b.id} position={[b.lat, b.lng]} icon={overviewDivIcon(b.flagStatus)} eventHandlers={{ click: () => onSelectBeach(b.id) }} />
       ))}
     </MapContainer>
   );
 }
 
-function StatusPill({ status }) {
+function StatusPill({ status, language }) {
   const cfg = FLAG_STATUS[status];
   return (
     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${cfg.bg}`}>
       <FlagIcon status={status} />
-      <span className={`text-sm font-semibold ${cfg.text}`}>{cfg.short}</span>
+      <span className={`text-sm font-semibold ${cfg.text}`}>{t(language, `flag_${status}_short`)}</span>
     </div>
   );
 }
@@ -99,11 +89,11 @@ function TopBar({ title, onBack, right }) {
   );
 }
 
-function BottomNav({ screen, setScreen }) {
+function BottomNav({ screen, setScreen, language }) {
   const items = [
-    { id: "home", label: "Beaches", icon: MapPin },
-    { id: "live", label: "Live", icon: Radio },
-    { id: "language", label: "Language", icon: Languages },
+    { id: "home", label: t(language, "nav_beaches"), icon: MapPin },
+    { id: "live", label: t(language, "nav_live"), icon: Radio },
+    { id: "language", label: t(language, "nav_language"), icon: Languages },
   ];
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 flex z-20 max-w-md mx-auto">
@@ -140,12 +130,12 @@ function SOSButton({ onClick }) {
 
 /* ---- Home ---- */
 
-function LocationBanner({ geo }) {
+function LocationBanner({ geo, language }) {
   if (geo.status === "granted") {
     return (
       <div className="mx-4 mt-4 flex items-center gap-2 bg-teal-50 text-teal-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
         <Navigation className="w-4 h-4 shrink-0" />
-        Using your location — distances below are accurate.
+        {t(language, "loc_granted")}
       </div>
     );
   }
@@ -153,22 +143,19 @@ function LocationBanner({ geo }) {
     return (
       <div className="mx-4 mt-4 flex items-center gap-2 bg-blue-50 text-blue-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
         <Navigation className="w-4 h-4 shrink-0 animate-pulse" />
-        Finding your location...
+        {t(language, "loc_loading")}
       </div>
     );
   }
-  const message =
-    geo.status === "unavailable"
-      ? "Location isn't supported on this device."
-      : "Location access needed for accurate distances.";
+  const message = geo.status === "unavailable" ? t(language, "loc_unavailable") : t(language, "loc_denied");
   return (
     <div className="mx-4 mt-4 flex items-center justify-between gap-2 bg-amber-50 text-amber-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold">
       <div className="flex items-center gap-2 min-w-0">
         <Navigation className="w-4 h-4 shrink-0" />
-        <span>{message} Showing estimated distances.</span>
+        <span>{message} {t(language, "loc_estimatedSuffix")}</span>
       </div>
       {geo.status !== "unavailable" && (
-        <button onClick={geo.retry} className="shrink-0 underline font-bold">Retry</button>
+        <button onClick={geo.retry} className="shrink-0 underline font-bold">{t(language, "loc_retry")}</button>
       )}
     </div>
   );
@@ -184,8 +171,6 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
 
   const hasRealLocation = geo.status === "granted";
   const nearby = hasRealLocation ? sorted.filter((b) => b.liveDistanceKm <= NEARBY_RADIUS_KM) : [];
-  // Without real GPS we can't honestly claim "within 10km" — fall back to
-  // showing the closest few estimated-distance beaches instead.
   const fallbackNearby = sorted.slice(0, 5);
 
   return (
@@ -204,24 +189,23 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
             </button>
             <div className="flex items-center gap-1 bg-blue-800 rounded-full px-2.5 py-1 text-xs font-medium">
               <Languages className="w-3.5 h-3.5" />
-              {LANGUAGES.find((l) => l.code === language)?.native}
+              {LANGUAGE_NAMES[language]?.native}
             </div>
           </div>
         }
       />
 
-      <LocationBanner geo={geo} />
+      <LocationBanner geo={geo} language={language} />
 
-      {/* Real satellite overview of every beach — tap a pin to open it */}
       <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden h-44 ring-1 ring-stone-200">
         <OverviewMap beaches={sorted} onSelectBeach={onSelectBeach} />
         <div className="absolute top-3 left-3 bg-white/90 rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-blue-900 pointer-events-none z-[1000]">
-          <Navigation className="w-3.5 h-3.5" /> Live map
+          <Navigation className="w-3.5 h-3.5" /> {t(language, "home_liveMap")}
         </div>
       </div>
 
       <div className="px-4 mt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Nearest to you</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">{t(language, "home_nearestToYou")}</p>
         <button
           onClick={() => onSelectBeach(nearest.id)}
           className="w-full text-left bg-white rounded-2xl p-4 shadow-sm ring-1 ring-stone-100 flex items-center justify-between active:bg-stone-50"
@@ -229,25 +213,24 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="font-display text-xl font-bold tracking-tight text-stone-800 truncate">{nearest.name}</h2>
-              <span className="text-xs text-stone-400 font-medium">
+              <span className="font-data text-xs text-stone-400 font-medium">
                 {nearest.isLive ? "" : "~"}{nearest.liveDistanceKm.toFixed(1)} km
               </span>
             </div>
-            <div className="mt-2"><StatusPill status={nearest.flagStatus} /></div>
+            <div className="mt-2"><StatusPill status={nearest.flagStatus} language={language} /></div>
           </div>
           <ChevronRight className="w-5 h-5 text-stone-300 shrink-0" />
         </button>
       </div>
 
-      {/* Beaches within 10km — the main "what's near me" list */}
       <div className="px-4 mt-6">
         <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">
-          {hasRealLocation ? `Beaches within ${NEARBY_RADIUS_KM} km` : "Closest beaches (estimated)"}
+          {hasRealLocation ? t(language, "home_beachesWithinRadius", { n: NEARBY_RADIUS_KM }) : t(language, "home_closestEstimated")}
         </p>
 
         {hasRealLocation && nearby.length === 0 && (
           <div className="bg-white rounded-xl p-4 ring-1 ring-stone-100 text-sm text-stone-500 flex items-center gap-2">
-            <MapPin className="w-4 h-4 shrink-0" /> No patrolled beaches within {NEARBY_RADIUS_KM} km of your location.
+            <MapPin className="w-4 h-4 shrink-0" /> {t(language, "home_noNearbyBeaches", { n: NEARBY_RADIUS_KM })}
           </div>
         )}
 
@@ -262,7 +245,7 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
                 <FlagIcon status={b.flagStatus} />
                 <div className="min-w-0">
                   <p className="font-semibold text-stone-800 truncate">{b.name}</p>
-                  <p className="text-xs text-stone-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km away</p>
+                  <p className="font-data text-xs text-stone-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km {t(language, "home_away")}</p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
@@ -271,13 +254,12 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
         </div>
       </div>
 
-      {/* Full nationwide list — collapsed by default so the near-me list stays the focus */}
       <div className="px-4 mt-6">
         <button
           onClick={() => setShowAllNationwide((v) => !v)}
           className="w-full flex items-center justify-between bg-white rounded-xl p-3.5 ring-1 ring-stone-100 text-sm font-bold text-blue-800"
         >
-          <span>{showAllNationwide ? "Hide" : `Show all ${sorted.length} patrolled beaches nationwide`}</span>
+          <span>{showAllNationwide ? t(language, "home_hide") : t(language, "home_showAllNationwide", { n: sorted.length })}</span>
           <ChevronRight className={`w-4 h-4 transition-transform ${showAllNationwide ? "rotate-90" : ""}`} />
         </button>
 
@@ -293,7 +275,7 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
                   <FlagIcon status={b.flagStatus} />
                   <div className="min-w-0">
                     <p className="font-semibold text-stone-800 truncate">{b.name}</p>
-                    <p className="text-xs text-stone-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km away</p>
+                    <p className="font-data text-xs text-stone-400">{b.state} · {b.isLive ? "" : "~"}{b.liveDistanceKm.toFixed(1)} km {t(language, "home_away")}</p>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-stone-300 shrink-0" />
@@ -308,7 +290,7 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
 
 /* ---- Beach detail ---- */
 
-function BeachDetailScreen({ beach, onBack, onGoLive, onView3D, userLocation }) {
+function BeachDetailScreen({ beach, onBack, onGoLive, userLocation, language }) {
   const cfg = FLAG_STATUS[beach.flagStatus];
   const mapFeatures = beach.mapFeatures || { swimZone: null, closedZones: [], hazardMarkers: [] };
   const [fullscreen, setFullscreen] = useState(false);
@@ -321,43 +303,37 @@ function BeachDetailScreen({ beach, onBack, onGoLive, onView3D, userLocation }) 
         <div className="flex items-center gap-3">
           <FlagIcon status={beach.flagStatus} size="lg" />
           <div>
-            <p className={`font-bold text-lg ${cfg.text}`}>{cfg.label} {beach.adminManaged ? "" : "(unpatrolled beach)"}</p>
-            <p className="text-xs text-stone-500 mt-0.5">Updated {beach.lastUpdated}</p>
+            <p className={`font-bold text-lg ${cfg.text}`}>{t(language, `flag_${beach.flagStatus}_label`)} {beach.adminManaged ? "" : t(language, "detail_unpatrolledSuffix")}</p>
+            <p className="text-xs text-stone-500 mt-0.5">{t(language, "detail_updated", { time: beach.lastUpdated })}</p>
           </div>
         </div>
       </div>
 
       <div className="px-4 mt-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-stone-400">Beach map</p>
-          <button
-            onClick={() => onView3D(beach.id)}
-            className="flex items-center gap-1.5 text-xs font-bold text-blue-800 bg-blue-50 rounded-full px-2.5 py-1"
-          >
-            <Box className="w-3.5 h-3.5" /> View in 3D
-          </button>
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400">{t(language, "detail_beachMap")}</p>
         </div>
         <div className="relative rounded-2xl overflow-hidden ring-1 ring-stone-200" style={{ height: 380 }}>
-          <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} />
+          <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} language={language} />
           <button
             onClick={() => setFullscreen(true)}
             className="absolute bottom-3 right-3 z-[1000] flex items-center gap-1.5 bg-white/95 text-stone-700 rounded-full px-3 py-1.5 text-xs font-bold shadow"
           >
-            <Maximize2 className="w-3.5 h-3.5" /> Expand
+            <Maximize2 className="w-3.5 h-3.5" /> {t(language, "detail_expand")}
           </button>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1">
           {mapFeatures.swimZone && (
-            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-sm bg-teal-500 inline-block" /> Safe swim zone</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-sm bg-teal-500 inline-block" /> {t(language, "detail_safeSwimZone")}</span>
           )}
           {mapFeatures.closedZones.length > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" /> Closed area</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block" /> {t(language, "detail_closedArea")}</span>
           )}
           {mapFeatures.hazardMarkers.length > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Tap a pin for hazard details</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> {t(language, "detail_tapPinHazard")}</span>
           )}
           {userLocation && (
-            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" /> You</span>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500"><span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" /> {t(language, "detail_you")}</span>
           )}
         </div>
       </div>
@@ -365,39 +341,39 @@ function BeachDetailScreen({ beach, onBack, onGoLive, onView3D, userLocation }) 
       <div className="px-4 mt-4 grid grid-cols-2 gap-3">
         <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Clock className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-stone-400">Patrol hours</p>
+          <p className="text-xs text-stone-400">{t(language, "detail_patrolHours")}</p>
           <p className="font-semibold text-stone-800 text-sm">{beach.patrolHours}</p>
         </div>
         <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Users className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-stone-400">Lifeguards on duty</p>
-          <p className="font-semibold text-stone-800 text-sm">{beach.lifeguardsOnDuty}</p>
+          <p className="text-xs text-stone-400">{t(language, "detail_lifeguardsOnDuty")}</p>
+          <p className="font-data font-semibold text-stone-800 text-sm">{beach.lifeguardsOnDuty}</p>
         </div>
         <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Waves className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-stone-400">Wave height</p>
+          <p className="text-xs text-stone-400">{t(language, "detail_waveHeight")}</p>
           <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.waveHeightM} m</p>
         </div>
         <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Thermometer className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-stone-400">Water temp</p>
+          <p className="text-xs text-stone-400">{t(language, "detail_waterTemp")}</p>
           <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.waterTempC}°C</p>
         </div>
         <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Sun className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-stone-400">UV index</p>
-          <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.uvIndex} (extreme)</p>
+          <p className="text-xs text-stone-400">{t(language, "detail_uvIndex")}</p>
+          <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.uvIndex} {t(language, "detail_uvExtreme")}</p>
         </div>
         <div className="bg-white rounded-xl p-3 ring-1 ring-stone-100">
           <Wind className="w-4 h-4 text-blue-800 mb-1" />
-          <p className="text-xs text-stone-400">Wind</p>
+          <p className="text-xs text-stone-400">{t(language, "detail_wind")}</p>
           <p className="font-data font-semibold text-stone-800 text-sm">{beach.conditions.windKmh} km/h {beach.conditions.windDir}</p>
         </div>
       </div>
 
       {beach.hazards.length > 0 && (
         <div className="px-4 mt-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Known hazards</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">{t(language, "detail_knownHazards")}</p>
           <div className="bg-white rounded-xl ring-1 ring-stone-100 divide-y divide-stone-100">
             {beach.hazards.map((h, i) => (
               <div key={i} className="flex items-start gap-2 p-3">
@@ -414,18 +390,18 @@ function BeachDetailScreen({ beach, onBack, onGoLive, onView3D, userLocation }) 
           onClick={onGoLive}
           className="w-full bg-blue-800 text-white rounded-xl py-3.5 font-bold flex items-center justify-center gap-2 active:bg-blue-900"
         >
-          <Megaphone className="w-5 h-5" /> Live lifeguard alerts & broadcast
+          <Megaphone className="w-5 h-5" /> {t(language, "detail_liveLifeguardAlerts")}
         </button>
       </div>
 
       {fullscreen && (
         <div className="fixed inset-0 z-[2000] bg-black">
-          <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} />
+          <BeachMap beach={beach} userLocation={userLocation} className="w-full h-full" zoom={17} language={language} />
           <button
             onClick={() => setFullscreen(false)}
             className="absolute top-4 right-4 z-[2001] flex items-center gap-1.5 bg-white text-stone-800 rounded-full px-3 py-2 text-sm font-bold shadow-lg"
           >
-            <X className="w-4 h-4" /> Close
+            <X className="w-4 h-4" /> {t(language, "detail_close")}
           </button>
         </div>
       )}
@@ -436,23 +412,26 @@ function BeachDetailScreen({ beach, onBack, onGoLive, onView3D, userLocation }) 
 /* ---- Live broadcast — now driven by real published alerts ---- */
 
 const LEVEL_STYLES = {
-  danger: { bg: "bg-red-50", ring: "ring-red-200", text: "text-red-700", icon: AlertTriangle, label: "danger" },
-  closure: { bg: "bg-stone-100", ring: "ring-stone-300", text: "text-stone-800", icon: AlertTriangle, label: "closure" },
-  caution: { bg: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700", icon: AlertTriangle, label: "caution" },
-  info: { bg: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700", icon: Info, label: "info" },
+  danger: { bg: "bg-red-50", ring: "ring-red-200", text: "text-red-700", icon: AlertTriangle },
+  closure: { bg: "bg-stone-100", ring: "ring-stone-300", text: "text-stone-800", icon: AlertTriangle },
+  caution: { bg: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700", icon: AlertTriangle },
+  info: { bg: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700", icon: Info },
 };
 
 function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, onBack }) {
   const [pulse, setPulse] = useState(true);
   useEffect(() => {
-    const t = setInterval(() => setPulse((p) => !p), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setPulse((p) => !p), 1000);
+    return () => clearInterval(timer);
   }, []);
+
+  const liveLabel = t(language, "nav_live");
+  const title = beach ? `${beach.name} · ${liveLabel}` : liveLabel;
 
   return (
     <div className="pb-24">
       <TopBar
-        title={beach ? `${beach.name} · Live` : "Live broadcast"}
+        title={title}
         onBack={onBack}
         right={
           isLive ? (
@@ -469,8 +448,8 @@ function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, o
           <Volume2 className="w-5 h-5 shrink-0" />
           <p className="text-sm leading-snug">
             {isLive
-              ? <>The lifeguard tower is broadcasting live now, started {fmtTime(liveStartedAt)}. Alerts below are translated into <span className="font-semibold">{LANGUAGES.find((l) => l.code === language)?.label}</span>.</>
-              : <>No live broadcast right now. Alerts published by lifeguards still appear below, translated into <span className="font-semibold">{LANGUAGES.find((l) => l.code === language)?.label}</span>.</>}
+              ? t(language, "live_broadcastingSince", { time: fmtTime(liveStartedAt), lang: LANGUAGE_NAMES[language]?.label })
+              : t(language, "live_noLiveNote", { lang: LANGUAGE_NAMES[language]?.label })}
           </p>
         </div>
       </div>
@@ -478,7 +457,7 @@ function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, o
       <div className="px-4 mt-4 space-y-3">
         {alerts.length === 0 && (
           <div className="flex items-center gap-2 text-stone-400 text-sm py-6 justify-center">
-            <MapPin className="w-4 h-4" /> No active alerts for this beach right now.
+            <MapPin className="w-4 h-4" /> {t(language, "live_noActiveAlerts")}
           </div>
         )}
         {alerts.map((a) => {
@@ -489,14 +468,14 @@ function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, o
             <div key={a.id} className={`rounded-xl p-3.5 ring-1 ${style.bg} ${style.ring}`}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className={`flex items-center gap-1.5 text-xs font-bold uppercase ${style.text}`}>
-                  <Icon className="w-3.5 h-3.5" /> {style.label}
+                  <Icon className="w-3.5 h-3.5" /> {t(language, `severity_${a.severity}`)}
                 </div>
-                <span className="text-xs text-stone-400">{fmtTime(a.createdAt)}</span>
+                <span className="font-data text-xs text-stone-400">{fmtTime(a.createdAt)}</span>
               </div>
               <p className="text-stone-800 text-sm leading-relaxed">{text}</p>
               {isFallback && (
                 <p className="text-xs text-stone-400 mt-1.5 italic">
-                  Translation unavailable right now — showing original English text.
+                  {t(language, "live_translationUnavailable")}
                 </p>
               )}
             </div>
@@ -516,34 +495,34 @@ function LanguageScreen({ language, setLanguage }) {
 
   return (
     <div className="pb-24">
-      <TopBar title="Language" />
+      <TopBar title={t(language, "nav_language")} />
       <div className="px-4 mt-4">
         <p className="text-sm text-stone-500 mb-3">
-          Choose your language. All lifeguard alerts and live broadcasts will be translated instantly.
+          {t(language, "lang_chooseLanguage")}
         </p>
 
         <div className="bg-white rounded-xl ring-1 ring-stone-100 p-3.5 mb-4">
-          <p className="text-xs font-bold uppercase text-stone-400 mb-1.5">Preview</p>
+          <p className="text-xs font-bold uppercase text-stone-400 mb-1.5">{t(language, "lang_preview")}</p>
           <p className="text-sm text-stone-800">{preview.text}</p>
           {preview.isFallback && (
-            <p className="text-xs text-stone-400 mt-1.5 italic">Showing original English — translation not yet available for this phrase.</p>
+            <p className="text-xs text-stone-400 mt-1.5 italic">{t(language, "lang_showingOriginalNote")}</p>
           )}
         </div>
 
         <div className="space-y-2">
-          {LANGUAGES.map((l) => {
-            const active = language === l.code;
+          {Object.entries(LANGUAGE_NAMES).map(([code, names]) => {
+            const active = language === code;
             return (
               <button
-                key={l.code}
-                onClick={() => setLanguage(l.code)}
+                key={code}
+                onClick={() => setLanguage(code)}
                 className={`w-full flex items-center justify-between rounded-xl p-3.5 ring-1 ${
                   active ? "bg-blue-50 ring-blue-300" : "bg-white ring-stone-100"
                 }`}
               >
                 <div className="text-left">
-                  <p className="font-semibold text-stone-800">{l.native}</p>
-                  <p className="text-xs text-stone-400">{l.label}</p>
+                  <p className="font-semibold text-stone-800">{names.native}</p>
+                  <p className="text-xs text-stone-400">{names.label}</p>
                 </div>
                 {active ? (
                   <CheckCircle2 className="w-5 h-5 text-blue-700" />
@@ -561,16 +540,15 @@ function LanguageScreen({ language, setLanguage }) {
 
 /* ---- Emergency ---- */
 
-function EmergencyScreen({ beach, onBack }) {
+function EmergencyScreen({ beach, onBack, language }) {
   const [alerted, setAlerted] = useState(false);
   return (
     <div className="pb-10 bg-red-600 min-h-screen text-white">
-      <TopBar title="Emergency" onBack={onBack} right={null} />
+      <TopBar title={t(language, "emergency_title")} onBack={onBack} right={null} />
       <div className="px-4 mt-4">
         <div className="bg-white/10 rounded-2xl p-4 mb-5">
           <p className="text-sm text-red-50">
-            If someone is in immediate danger in the water, call 000 now. Australia's emergency number
-            works for police, fire, and ambulance.
+            {t(language, "emergency_ifDanger")}
           </p>
         </div>
 
@@ -578,7 +556,7 @@ function EmergencyScreen({ beach, onBack }) {
           href="tel:000"
           className="w-full flex items-center justify-center gap-3 bg-white text-red-700 rounded-2xl py-5 font-extrabold text-2xl shadow-lg mb-3"
         >
-          <Phone className="w-7 h-7" /> Call 000
+          <Phone className="w-7 h-7" /> {t(language, "emergency_call000")}
         </a>
 
         <button
@@ -587,28 +565,26 @@ function EmergencyScreen({ beach, onBack }) {
           className="w-full flex items-center justify-center gap-2 bg-red-800 rounded-2xl py-4 font-bold text-lg disabled:opacity-70"
         >
           <Megaphone className="w-5 h-5" />
-          {alerted ? "Nearest tower alerted" : "Alert nearest lifeguard tower"}
+          {alerted ? t(language, "emergency_towerAlerted") : t(language, "emergency_alertTower")}
         </button>
         {alerted && (
           <p className="text-center text-sm text-red-50 mt-2">
-            {/* FUTURE: real push to patrol tower device */}
-            A lifeguard has been notified of your location at {beach ? beach.name : "your beach"}.
+            {t(language, "emergency_notified", { beach: beach ? beach.name : t(language, "emergency_yourBeachFallback") })}
           </p>
         )}
 
         <div className="bg-white/10 rounded-2xl p-4 mt-6">
-          <p className="text-xs uppercase font-bold text-red-100 mb-1">Your location</p>
-          <p className="font-semibold">{beach ? beach.name : "Location unavailable"}</p>
-          {/* FUTURE: live GPS coordinates shared automatically with 000 / lifeguards */}
+          <p className="text-xs uppercase font-bold text-red-100 mb-1">{t(language, "emergency_yourLocation")}</p>
+          <p className="font-semibold">{beach ? beach.name : t(language, "emergency_locationUnavailable")}</p>
         </div>
 
         <div className="mt-6">
-          <p className="text-xs uppercase font-bold text-red-100 mb-2">While you wait</p>
+          <p className="text-xs uppercase font-bold text-red-100 mb-2">{t(language, "emergency_whileYouWait")}</p>
           <ul className="space-y-2 text-sm text-red-50">
-            <li>• Keep the person in sight at all times.</li>
-            <li>• Do not enter the water yourself unless trained.</li>
-            <li>• Wave both arms above your head to signal a lifeguard.</li>
-            <li>• Send someone to the nearest red-and-yellow flag tower.</li>
+            <li>• {t(language, "emergency_bullet1")}</li>
+            <li>• {t(language, "emergency_bullet2")}</li>
+            <li>• {t(language, "emergency_bullet3")}</li>
+            <li>• {t(language, "emergency_bullet4")}</li>
           </ul>
         </div>
       </div>
@@ -616,18 +592,11 @@ function EmergencyScreen({ beach, onBack }) {
   );
 }
 
-/* ---- Push notifications ---- */
-
-// FUTURE: real background push (alerts arriving while the app is fully
-// closed) requires a service worker + a backend push service (e.g. Web
-// Push / FCM). What's built here fires while the app is open in a browser
-// tab — a realistic "in-app + OS notification" layer, not true background
-// push. The toast banner is the guaranteed-visible part; the OS notification
-// is a bonus that depends on browser permission and focus state.
-
 /* ---- Tourist profile — deliberately lightweight: name only, no password.
    Tourists have nothing sensitive to protect, so this is personalization,
-   not security. Stored in localStorage only (this device, this browser). ---- */
+   not security. Stored in localStorage only (this device, this browser).
+   Shown before any language selection happens, so it stays in English by
+   design — same default-English-until-you-pick pattern used elsewhere. ---- */
 
 const PROFILE_KEY = "beachsafe-tourist-profile";
 
@@ -690,11 +659,11 @@ function WelcomeScreen({ existing, onSubmit }) {
   );
 }
 
-function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, setNotifyTarget, permission, onTest, onBack, profile, onEditProfile }) {
+function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, setNotifyTarget, permission, onTest, onBack, profile, onEditProfile, language }) {
   const supported = permission !== "unsupported";
   return (
     <div className="pb-24">
-      <TopBar title="Settings" onBack={onBack} />
+      <TopBar title={t(language, "settings_title")} onBack={onBack} />
       <div className="px-4 mt-4">
         <div className="bg-white rounded-2xl p-4 ring-1 ring-stone-100 flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -702,23 +671,23 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
               <User className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold text-stone-800">{profile?.isGuest ? "Guest" : profile?.name || "Guest"}</p>
-              <p className="text-xs text-stone-400">{profile?.country ? `From ${profile.country}` : "No profile details set"}</p>
+              <p className="font-bold text-stone-800">{profile?.isGuest ? t(language, "settings_guest") : profile?.name || t(language, "settings_guest")}</p>
+              <p className="text-xs text-stone-400">{profile?.country ? t(language, "settings_fromCountry", { country: profile.country }) : t(language, "settings_noProfile")}</p>
             </div>
           </div>
           <button onClick={onEditProfile} className="text-xs font-bold text-blue-700 bg-blue-50 rounded-full px-3 py-1.5">
-            Edit
+            {t(language, "settings_edit")}
           </button>
         </div>
 
         {!supported && (
           <div className="bg-stone-100 text-stone-500 rounded-xl p-3.5 text-sm mb-4">
-            Push notifications aren't supported in this browser. You'll still see in-app alert banners while using the app.
+            {t(language, "settings_pushNotSupported")}
           </div>
         )}
         {supported && permission === "denied" && (
           <div className="bg-amber-50 text-amber-800 rounded-xl p-3.5 text-sm mb-4">
-            Notifications are blocked for this site in your browser settings. You'll still see in-app banners, but not OS-level alerts. To enable OS alerts, allow notifications for this site in your browser's settings.
+            {t(language, "settings_blocked")}
           </div>
         )}
 
@@ -728,8 +697,8 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
               {notifyEnabled ? <BellRing className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
             </div>
             <div>
-              <p className="font-bold text-stone-800">Push alerts</p>
-              <p className="text-xs text-stone-400">Get notified the moment a lifeguard publishes an alert</p>
+              <p className="font-bold text-stone-800">{t(language, "settings_pushAlerts")}</p>
+              <p className="text-xs text-stone-400">{t(language, "settings_pushAlertsDesc")}</p>
             </div>
           </div>
           <button
@@ -743,20 +712,20 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
 
         {notifyEnabled && (
           <div className="bg-white rounded-2xl p-4 ring-1 ring-stone-100 mb-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Notify me about</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">{t(language, "settings_notifyAbout")}</p>
             <div className="space-y-2">
               <button
                 onClick={() => setNotifyTarget("nearest")}
                 className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "nearest" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-stone-50"}`}
               >
-                <span className="text-sm font-semibold text-stone-800">My nearest beach only</span>
+                <span className="text-sm font-semibold text-stone-800">{t(language, "settings_nearestOnly")}</span>
                 {notifyTarget === "nearest" && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
               </button>
               <button
                 onClick={() => setNotifyTarget("all")}
                 className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === "all" ? "bg-blue-50 ring-1 ring-blue-300" : "bg-stone-50"}`}
               >
-                <span className="text-sm font-semibold text-stone-800">All patrolled beaches</span>
+                <span className="text-sm font-semibold text-stone-800">{t(language, "settings_allBeaches")}</span>
                 {notifyTarget === "all" && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
               </button>
               {beaches.map((b) => (
@@ -765,7 +734,7 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
                   onClick={() => setNotifyTarget(b.id)}
                   className={`w-full flex items-center justify-between rounded-xl p-3 text-left ${notifyTarget === b.id ? "bg-blue-50 ring-1 ring-blue-300" : "bg-stone-50"}`}
                 >
-                  <span className="text-sm font-semibold text-stone-800">{b.name} only</span>
+                  <span className="text-sm font-semibold text-stone-800">{t(language, "settings_beachOnly", { beach: b.name })}</span>
                   {notifyTarget === b.id && <CheckCircle2 className="w-4 h-4 text-blue-700" />}
                 </button>
               ))}
@@ -778,7 +747,7 @@ function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, s
             onClick={onTest}
             className="w-full flex items-center justify-center gap-2 bg-stone-100 text-stone-700 rounded-xl py-3 font-bold text-sm"
           >
-            <Bell className="w-4 h-4" /> Send a test alert
+            <Bell className="w-4 h-4" /> {t(language, "settings_sendTest")}
           </button>
         )}
       </div>
@@ -831,15 +800,20 @@ export default function TouristApp() {
   );
   const nearestBeachId = sortedByDistance[0]?.id;
 
+  // Fires both the OS notification and the guaranteed-visible in-app toast,
+  // translated into the tourist's selected language — this is the fix for
+  // "I can't see the translation" on live/push alerts.
   function fireAlert(beach, alert) {
-    const sv = SEVERITY[alert.severity] || SEVERITY.info;
-    const title = `${sv.label} alert — ${beach ? beach.name : "Beach"}`;
+    const { text: translatedText } = translateAlert(alert, language);
+    const severityLabel = t(language, `severity_${alert.severity}`);
+    const beachName = beach ? beach.name : t(language, "toast_beachFallback");
+    const title = t(language, "toast_alertTitle", { severity: severityLabel, beach: beachName });
+
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-      try { new Notification(title, { body: alert.text }); } catch { /* some browsers restrict this outside a service worker */ }
+      try { new Notification(title, { body: translatedText }); } catch { /* some browsers restrict this outside a service worker */ }
     }
-    // In-app banner: the one guaranteed-visible path regardless of OS/browser support.
-    setToast({ id: alert.id, title, body: alert.text, severity: alert.severity });
-    setTimeout(() => setToast((t) => (t && t.id === alert.id ? null : t)), 6000);
+    setToast({ id: alert.id, title, body: translatedText, severity: alert.severity });
+    setTimeout(() => setToast((cur) => (cur && cur.id === alert.id ? null : cur)), 6000);
   }
 
   function handleToggleNotify() {
@@ -856,28 +830,26 @@ export default function TouristApp() {
   function handleTestAlert() {
     const targetId = notifyTarget === "nearest" ? nearestBeachId : notifyTarget === "all" ? nearestBeachId : notifyTarget;
     const beach = beaches.find((b) => b.id === targetId);
-    fireAlert(beach, { id: `test-${Date.now()}`, severity: "caution", text: "This is a test alert — push notifications are working." });
+    fireAlert(beach, { id: `test-${Date.now()}`, severity: "caution", text: t(language, "settings_testAlertBody") });
   }
 
-  // Seed already-existing alerts as "seen" on first load so we only notify
-  // for alerts published *after* the app opened, not the full history.
   useEffect(() => {
     if (seenAlertIds.current === null) {
       seenAlertIds.current = new Set(alerts.map((a) => a.id));
     }
   }, [alerts]);
 
-  // Watch for newly published alerts and notify if they match the person's target.
   useEffect(() => {
     if (!notifyEnabled || seenAlertIds.current === null) return;
     const targetId = notifyTarget === "nearest" ? nearestBeachId : notifyTarget === "all" ? null : notifyTarget;
     alerts.forEach((a) => {
       if (seenAlertIds.current.has(a.id) || a.resolved) return;
       seenAlertIds.current.add(a.id);
-      if (targetId !== null && a.beachId !== targetId) return; // not for the beach(es) they asked about
+      if (targetId !== null && a.beachId !== targetId) return;
       fireAlert(beaches.find((b) => b.id === a.beachId), a);
     });
-  }, [alerts, notifyEnabled, notifyTarget, nearestBeachId, beaches]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts, notifyEnabled, notifyTarget, nearestBeachId, beaches, language]);
 
   const selectedBeach = beaches.find((b) => b.id === selectedBeachId) || null;
 
@@ -890,10 +862,7 @@ export default function TouristApp() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-sand-50 font-sans relative">
       {screen === "welcome" && (
-        <WelcomeScreen
-          existing={profile}
-          onSubmit={(p) => { setProfile(p); goTo("home"); }}
-        />
+        <WelcomeScreen existing={profile} onSubmit={(p) => { setProfile(p); goTo("home"); }} />
       )}
 
       {screen !== "welcome" && <AlertToast toast={toast} onDismiss={() => setToast(null)} />}
@@ -920,6 +889,7 @@ export default function TouristApp() {
           onTest={handleTestAlert}
           profile={profile}
           onEditProfile={() => goTo("welcome")}
+          language={language}
           onBack={() => goTo(previousScreen === "notifications" ? "home" : previousScreen)}
         />
       )}
@@ -929,13 +899,9 @@ export default function TouristApp() {
           beach={selectedBeach}
           onBack={() => goTo("home")}
           onGoLive={() => goTo("live")}
-          onView3D={() => goTo("beach3d")}
           userLocation={geo.status === "granted" && geo.coords ? geo.coords : null}
+          language={language}
         />
-      )}
-
-      {screen === "beach3d" && selectedBeach && (
-        <Beach3DView beach={selectedBeach} onBack={() => goTo("detail")} />
       )}
 
       {screen === "live" && (
@@ -954,13 +920,13 @@ export default function TouristApp() {
       )}
 
       {screen === "emergency" && (
-        <EmergencyScreen beach={selectedBeach} onBack={() => goTo(previousScreen === "emergency" ? "home" : previousScreen)} />
+        <EmergencyScreen beach={selectedBeach} language={language} onBack={() => goTo(previousScreen === "emergency" ? "home" : previousScreen)} />
       )}
 
-      {screen !== "emergency" && screen !== "beach3d" && screen !== "welcome" && (
+      {screen !== "emergency" && screen !== "welcome" && (
         <>
           <SOSButton onClick={() => goTo("emergency")} />
-          <BottomNav screen={["detail", "notifications"].includes(screen) ? "home" : screen} setScreen={goTo} />
+          <BottomNav screen={["detail", "notifications"].includes(screen) ? "home" : screen} setScreen={goTo} language={language} />
         </>
       )}
     </div>

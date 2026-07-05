@@ -107,19 +107,35 @@ beaches nationwide" section underneath. Without GPS permission, it falls
 back to showing the closest few beaches by estimated distance rather than
 claiming a radius it can't actually verify.
 
-## 3D Beach View
+## Full translation (tourist app)
 
-Each beach detail screen now has a "View in 3D" button and a bigger,
-expandable 2D map. The 3D view (`src/components/Beach3DView.jsx`, built with
-Three.js) is a **stylized, schematic representation** — sand and water
-planes with the same hazard markers and zone outlines as the 2D map,
-rendered in 3D with drag-to-look-around, scroll-to-zoom controls.
+Every user-facing string in the tourist app now goes through a real
+translation system (`src/i18n/`), not just alert text:
 
-**This is not photographic Street View of the real beach.** True
-photographic 3D exploration would require real 360°/drone imagery captured
-per beach, which is out of scope for this prototype. What's built instead
-is honest and still useful: the exact same safety data an admin drew on the
-2D map, explorable in 3D.
+- **`uiStrings.js`** — 98 UI strings (screen titles, buttons, condition
+  labels, the emergency screen, settings, everything) translated into all
+  7 offered languages: English, Chinese, Japanese, Korean, Spanish, French,
+  and German.
+- **Beach names are never translated** — they're proper nouns, same as
+  "Paris" stays "Paris" in every language.
+- **Map hazard pins now translate too** (`hazardMarkerTranslations.js`) —
+  tapping a hazard marker on the map shows its translated label, with the
+  same honest fallback pattern used elsewhere (original English + a note,
+  if a specific admin-written hazard hasn't been pre-translated).
+- **Push/live alert notifications are now translated** — this was a real
+  gap before: the toast and OS notification that pop up when a new alert
+  is published were showing raw English regardless of the selected
+  language. Fixed — they now translate exactly like the Live screen does.
+
+**Honesty note:** these are careful prototype-grade translations (written
+directly, not through a live translation API, since this environment has no
+network access to one). They should read naturally, but a real production
+launch would want native-speaker review, especially for safety-critical
+text like the emergency screen.
+
+The 3D Beach View has been removed per feedback that it felt basic and
+confusing. The 2D interactive map (satellite imagery, hazard pins, swim
+zones) remains the primary way to explore a beach.
 
 ## Design system
 

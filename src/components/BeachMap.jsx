@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polygon, Marker, Popup, useMapEvents } from "r
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { HAZARD_TYPES } from "../store/beachData";
+import { t, translateHazardMarker } from "../i18n/i18n";
 
 /* ============================================================================
    Real satellite imagery via Esri World Imagery — free, no API key required,
@@ -60,6 +61,7 @@ export default function BeachMap({
   onDeleteHazard,
   className = "",
   zoom = 17,
+  language = "en", // tourist's selected language — translates hazard popup content
 }) {
   const mapFeatures = beach.mapFeatures || { swimZone: null, closedZones: [], hazardMarkers: [] };
 
@@ -103,26 +105,34 @@ export default function BeachMap({
           <Polygon positions={draftPoints} pathOptions={draftStyle} />
         )}
 
-        {(mapFeatures.hazardMarkers || []).map((h) => (
-          <Marker key={h.id} position={[h.lat, h.lng]} icon={hazardDivIcon(h.type)}>
-            <Popup>
-              <div style={{ minWidth: 160 }}>
-                <p style={{ fontWeight: 700, fontSize: 12, textTransform: "uppercase", color: HAZARD_TYPES[h.type]?.color || "#111" }}>
-                  {HAZARD_TYPES[h.type]?.label || "Hazard"}
-                </p>
-                <p style={{ fontSize: 13, marginTop: 4 }}>{h.label}</p>
-                {editable && onDeleteHazard && (
-                  <button
-                    onClick={() => onDeleteHazard(h.id)}
-                    style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#dc2626", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                  >
-                    Remove marker
-                  </button>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {(mapFeatures.hazardMarkers || []).map((h) => {
+          const { text, isFallback } = translateHazardMarker(h, language);
+          return (
+            <Marker key={h.id} position={[h.lat, h.lng]} icon={hazardDivIcon(h.type)}>
+              <Popup>
+                <div style={{ minWidth: 160 }}>
+                  <p style={{ fontWeight: 700, fontSize: 12, textTransform: "uppercase", color: HAZARD_TYPES[h.type]?.color || "#111" }}>
+                    {t(language, `hazard_${h.type}`)}
+                  </p>
+                  <p style={{ fontSize: 13, marginTop: 4 }}>{text}</p>
+                  {isFallback && language !== "en" && (
+                    <p style={{ fontSize: 11, marginTop: 4, color: "#78716c", fontStyle: "italic" }}>
+                      {t(language, "hazard_translationUnavailable")}
+                    </p>
+                  )}
+                  {editable && onDeleteHazard && (
+                    <button
+                      onClick={() => onDeleteHazard(h.id)}
+                      style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#dc2626", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                    >
+                      Remove marker
+                    </button>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {userLocation && (
           <Marker position={[userLocation.lat, userLocation.lng]} icon={userLocationIcon} />
