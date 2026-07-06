@@ -47,10 +47,27 @@ function overviewDivIcon(status) {
   });
 }
 
-function OverviewMap({ beaches, onSelectBeach }) {
-  const positions = beaches.map((b) => [b.lat, b.lng]);
+const userLocationDivIcon = L.divIcon({
+  className: "",
+  html: `<div style="width:16px;height:16px;background:#2563eb;border:3px solid white;border-radius:9999px;box-shadow:0 0 0 6px rgba(37,99,235,0.28);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+// Zooms to the tourist's actual area (them + the nearest beach) rather than
+// fitting every beach nationwide — a maxZoom cap keeps it at a sensible
+// "neighborhood" view even when they're right next to a beach, while still
+// widening out enough to include the nearest beach if it's a few km away.
+function OverviewMap({ beaches, onSelectBeach, userLocation, nearestBeach }) {
+  const viewProps = userLocation
+    ? {
+        bounds: [[userLocation.lat, userLocation.lng], [nearestBeach.lat, nearestBeach.lng]],
+        boundsOptions: { padding: [60, 60], maxZoom: 15 },
+      }
+    : { center: [nearestBeach.lat, nearestBeach.lng], zoom: 13 };
+
   return (
-    <MapContainer bounds={positions} boundsOptions={{ padding: [30, 30] }} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
+    <MapContainer {...viewProps} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
       <TileLayer
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         attribution="Tiles &copy; Esri"
@@ -59,6 +76,7 @@ function OverviewMap({ beaches, onSelectBeach }) {
       {beaches.map((b) => (
         <Marker key={b.id} position={[b.lat, b.lng]} icon={overviewDivIcon(b.flagStatus)} eventHandlers={{ click: () => onSelectBeach(b.id) }} />
       ))}
+      {userLocation && <Marker position={[userLocation.lat, userLocation.lng]} icon={userLocationDivIcon} />}
     </MapContainer>
   );
 }
@@ -205,7 +223,12 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
       <LocationBanner geo={geo} language={language} />
 
       <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden h-44 ring-1 ring-stone-200">
-        <OverviewMap beaches={sorted} onSelectBeach={onSelectBeach} />
+        <OverviewMap
+          beaches={sorted}
+          onSelectBeach={onSelectBeach}
+          userLocation={hasRealLocation ? geo.coords : null}
+          nearestBeach={nearest}
+        />
         <div className="absolute top-3 left-3 bg-white/90 rounded-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-blue-900 pointer-events-none z-[1000]">
           <Navigation className="w-3.5 h-3.5" /> {t(language, "home_liveMap")}
         </div>
@@ -524,10 +547,15 @@ function LiveBroadcastScreen({ beach, alerts, transcripts, isLive, liveStartedAt
 
 /* ---- Language ---- */
 
-function LanguageScreen({ language, setLanguage }) {
+function LanguageScreen({ language, setLanguage, onDone }) {
   const samplePreset = PRESETS.find((p) => p.key === "shark");
   const sampleAlert = { presetKey: samplePreset.key, text: samplePreset.text };
   const preview = translateAlert(sampleAlert, language);
+
+  function selectLanguage(code) {
+    setLanguage(code);
+    onDone();
+  }
 
   return (
     <div className="pb-24">
@@ -551,7 +579,7 @@ function LanguageScreen({ language, setLanguage }) {
             return (
               <button
                 key={code}
-                onClick={() => setLanguage(code)}
+                onClick={() => selectLanguage(code)}
                 className={`w-full flex items-center justify-between rounded-xl p-3.5 ring-1 ${
                   active ? "bg-blue-50 ring-blue-300" : "bg-white ring-stone-100"
                 }`}
@@ -957,7 +985,7 @@ export default function TouristApp() {
       )}
 
       {screen === "language" && (
-        <LanguageScreen language={language} setLanguage={setLanguage} />
+        <LanguageScreen language={language} setLanguage={setLanguage} onDone={() => goTo("home")} />
       )}
 
       {screen === "emergency" && (
