@@ -72,6 +72,50 @@ beachsafe-app/
         └── AdminApp.jsx
 ```
 
+## Live voice broadcast with real-time translation
+
+Lifesavers can now broadcast by **speaking**, not just by picking preset
+buttons. On the Composer tab, "Start voice broadcast":
+
+1. Uses the browser's built-in speech-to-text (the Web Speech API — no
+   API key, no extra cost, works natively in Chrome/Safari) to transcribe
+   what the lifesaver says, live.
+2. Each finalized sentence is sent to a free public translation API
+   (MyMemory) and translated into all 6 offered non-English languages in
+   parallel.
+3. The English line appears on the tourist app's Live screen **instantly**;
+   each translation fills in moments later as it comes back — an honest
+   reflection of real network latency, not a faked instant translation.
+4. Tourists see **both** the translated text and the original English,
+   clearly labeled, exactly as requested.
+
+**Two honesty notes:**
+- **Browser support**: the Web Speech API isn't available in Firefox. The
+  admin UI detects this and shows a clear message rather than silently
+  failing.
+- **Translation API**: MyMemory's free/anonymous tier is rate-limited
+  (roughly a few thousand words/day) and is a best-effort public service,
+  not a paid SLA-backed product. Great for a prototype and demos; a real
+  production deployment handling real lifeguard broadcasts should use a
+  paid service (Google Cloud Translation, DeepL API, Azure Translator)
+  with the API key held server-side, never in client code.
+
+Voice broadcast automatically turns on "live broadcast" status if it
+wasn't already on — it doesn't make sense to have a live transcript feed
+without the beach showing as actively broadcasting.
+
+The preset-button alert composer still works exactly as before — voice
+broadcast is additive, not a replacement.
+
+## Language selector moved
+
+The language picker used to be a bottom-nav tab. It's now the chip in the
+top-right corner of every screen (previously just a static display of the
+current language) — tap it to open the language picker directly. The
+bottom nav is down to 2 tabs (Beaches, Live) as a result. The chip is
+intentionally hidden on the Emergency screen to keep that screen focused
+during a crisis.
+
 ## Accounts
 
 Both apps now have account creation:

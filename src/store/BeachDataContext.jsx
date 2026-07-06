@@ -39,6 +39,7 @@ const defaultState = {
   auditLog: [],
   liveByBeach: {},
   users: USERS,
+  liveTranscripts: [],
 };
 
 function loadInitialState() {
@@ -216,6 +217,39 @@ export function BeachDataProvider({ children }) {
     return { ok: true, user: newUser };
   }, []);
 
+  // ---- Voice broadcast transcripts ----
+  // A lifeguard speaks into their phone; speech-to-text runs client-side
+  // (see useSpeechRecognition), and each finalized sentence is added here
+  // immediately in English, then patched with each language's translation
+  // as it comes back from the translation API (see liveTranslate.js) — the
+  // tourist app sees the English line appear instantly and the translation
+  // "fill in" moments later, which is an honest reflection of real network
+  // latency rather than a fake instant translation.
+  const MAX_TRANSCRIPTS_PER_BEACH = 40;
+
+  const addLiveTranscript = useCallback((beachId, textEn, actor) => {
+    const entry = { id: `tr-${Date.now()}-${Math.random()}`, beachId, at: Date.now(), textEn, translations: {}, actor };
+    setState((prev) => {
+      const forThisBeach = [entry, ...prev.liveTranscripts.filter((tItem) => tItem.beachId === beachId)].slice(0, MAX_TRANSCRIPTS_PER_BEACH);
+      const otherBeaches = prev.liveTranscripts.filter((tItem) => tItem.beachId !== beachId);
+      return { ...prev, liveTranscripts: [...forThisBeach, ...otherBeaches] };
+    });
+    return entry.id;
+  }, []);
+
+  const setTranscriptTranslation = useCallback((transcriptId, lang, text) => {
+    setState((prev) => ({
+      ...prev,
+      liveTranscripts: prev.liveTranscripts.map((tItem) =>
+        tItem.id === transcriptId ? { ...tItem, translations: { ...tItem.translations, [lang]: text } } : tItem
+      ),
+    }));
+  }, []);
+
+  const liveTranscriptsForBeach = useCallback((beachId) => {
+    return state.liveTranscripts.filter((tItem) => tItem.beachId === beachId).sort((a, b) => b.at - a.at);
+  }, [state.liveTranscripts]);
+
   const activeAlertsForBeach = useCallback((beachId) => {
     return state.alerts
       .filter((a) => a.beachId === beachId && !a.resolved && a.expiresAt > now)
@@ -225,6 +259,7 @@ export function BeachDataProvider({ children }) {
   const value = {
     beaches: state.beaches, alerts: state.alerts, auditLog: state.auditLog, liveByBeach: state.liveByBeach, users: state.users, now,
     publishAlert, resolveAlert, toggleLive, setBeachFlag, activeAlertsForBeach, updateMapFeatures, signUpLifesaver,
+    addLiveTranscript, setTranscriptTranslation, liveTranscriptsForBeach,
   };
 
   return <BeachDataContext.Provider value={value}>{children}</BeachDataContext.Provider>;

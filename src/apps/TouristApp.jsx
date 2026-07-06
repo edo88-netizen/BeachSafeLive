@@ -73,7 +73,7 @@ function StatusPill({ status, language }) {
   );
 }
 
-function TopBar({ title, onBack, right }) {
+function TopBar({ title, onBack, right, language, onOpenLanguage, hideLanguageChip = false }) {
   return (
     <div className="sticky top-0 z-20 bg-blue-950 text-white px-4 py-4 flex items-center justify-between shadow-lg shadow-blue-950/20">
       <div className="flex items-center gap-2 min-w-0">
@@ -84,7 +84,19 @@ function TopBar({ title, onBack, right }) {
         )}
         <span className="font-display text-lg font-bold tracking-tight truncate">{title}</span>
       </div>
-      {right}
+      <div className="flex items-center gap-2 shrink-0">
+        {right}
+        {!hideLanguageChip && onOpenLanguage && (
+          <button
+            onClick={onOpenLanguage}
+            className="flex items-center gap-1 bg-blue-800 rounded-full px-2.5 py-1 text-xs font-medium active:bg-blue-700"
+            aria-label="Change language"
+          >
+            <Languages className="w-3.5 h-3.5" />
+            {LANGUAGE_NAMES[language]?.native}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -93,7 +105,6 @@ function BottomNav({ screen, setScreen, language }) {
   const items = [
     { id: "home", label: t(language, "nav_beaches"), icon: MapPin },
     { id: "live", label: t(language, "nav_live"), icon: Radio },
-    { id: "language", label: t(language, "nav_language"), icon: Languages },
   ];
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 flex z-20 max-w-md mx-auto">
@@ -163,7 +174,7 @@ function LocationBanner({ geo, language }) {
 
 const NEARBY_RADIUS_KM = 10;
 
-function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications, notifyEnabled }) {
+function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications, onOpenLanguage, notifyEnabled }) {
   const [showAllNationwide, setShowAllNationwide] = useState(false);
   const beachesWithDistance = withLiveDistance(beaches, geo);
   const sorted = [...beachesWithDistance].sort((a, b) => a.liveDistanceKm - b.liveDistanceKm);
@@ -177,21 +188,17 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
     <div className="pb-24">
       <TopBar
         title="BeachSafe Live"
+        language={language}
+        onOpenLanguage={onOpenLanguage}
         right={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenNotifications}
-              className="relative flex items-center justify-center bg-blue-800 rounded-full w-8 h-8 active:bg-blue-700"
-              aria-label="Notification settings"
-            >
-              {notifyEnabled ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-              {notifyEnabled && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-teal-400 ring-2 ring-blue-900" />}
-            </button>
-            <div className="flex items-center gap-1 bg-blue-800 rounded-full px-2.5 py-1 text-xs font-medium">
-              <Languages className="w-3.5 h-3.5" />
-              {LANGUAGE_NAMES[language]?.native}
-            </div>
-          </div>
+          <button
+            onClick={onOpenNotifications}
+            className="relative flex items-center justify-center bg-blue-800 rounded-full w-8 h-8 active:bg-blue-700"
+            aria-label="Notification settings"
+          >
+            {notifyEnabled ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+            {notifyEnabled && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-teal-400 ring-2 ring-blue-900" />}
+          </button>
         }
       />
 
@@ -290,14 +297,14 @@ function HomeScreen({ beaches, onSelectBeach, language, geo, onOpenNotifications
 
 /* ---- Beach detail ---- */
 
-function BeachDetailScreen({ beach, onBack, onGoLive, userLocation, language }) {
+function BeachDetailScreen({ beach, onBack, onGoLive, userLocation, language, onOpenLanguage }) {
   const cfg = FLAG_STATUS[beach.flagStatus];
   const mapFeatures = beach.mapFeatures || { swimZone: null, closedZones: [], hazardMarkers: [] };
   const [fullscreen, setFullscreen] = useState(false);
 
   return (
     <div className="pb-24">
-      <TopBar title={beach.name} onBack={onBack} />
+      <TopBar title={beach.name} onBack={onBack} language={language} onOpenLanguage={onOpenLanguage} />
 
       <div className={`mx-4 mt-4 rounded-2xl p-5 ${cfg.bg}`}>
         <div className="flex items-center gap-3">
@@ -418,7 +425,7 @@ const LEVEL_STYLES = {
   info: { bg: "bg-blue-50", ring: "ring-blue-200", text: "text-blue-700", icon: Info },
 };
 
-function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, onBack }) {
+function LiveBroadcastScreen({ beach, alerts, transcripts, isLive, liveStartedAt, language, onBack, onOpenLanguage }) {
   const [pulse, setPulse] = useState(true);
   useEffect(() => {
     const timer = setInterval(() => setPulse((p) => !p), 1000);
@@ -433,6 +440,8 @@ function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, o
       <TopBar
         title={title}
         onBack={onBack}
+        language={language}
+        onOpenLanguage={onOpenLanguage}
         right={
           isLive ? (
             <div className="flex items-center gap-1.5 bg-red-600 rounded-full px-2.5 py-1 text-xs font-bold">
@@ -453,6 +462,33 @@ function LiveBroadcastScreen({ beach, alerts, isLive, liveStartedAt, language, o
           </p>
         </div>
       </div>
+
+      {isLive && transcripts.length > 0 && (
+        <div className="px-4 mt-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2 flex items-center gap-1.5">
+            <Radio className="w-3.5 h-3.5 text-red-600" /> {t(language, "live_voiceAnnouncement")}
+          </p>
+          <div className="space-y-2.5">
+            {transcripts.map((tItem) => {
+              const translated = language === "en" ? tItem.textEn : tItem.translations[language];
+              return (
+                <div key={tItem.id} className="rounded-xl p-3.5 bg-red-50 ring-1 ring-red-200">
+                  <p className="text-stone-800 text-base leading-relaxed font-semibold">
+                    {translated || <span className="italic text-stone-400 font-normal">{t(language, "live_translating")}</span>}
+                  </p>
+                  {language !== "en" && (
+                    <div className="mt-2 pt-2 border-t border-red-200/70">
+                      <p className="text-xs font-bold uppercase text-stone-400 mb-0.5">{t(language, "live_english")}</p>
+                      <p className="text-sm text-stone-600">{tItem.textEn}</p>
+                    </div>
+                  )}
+                  <p className="font-data text-xs text-stone-400 mt-1.5">{fmtTime(tItem.at)}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="px-4 mt-4 space-y-3">
         {alerts.length === 0 && (
@@ -544,7 +580,7 @@ function EmergencyScreen({ beach, onBack, language }) {
   const [alerted, setAlerted] = useState(false);
   return (
     <div className="pb-10 bg-red-600 min-h-screen text-white">
-      <TopBar title={t(language, "emergency_title")} onBack={onBack} right={null} />
+      <TopBar title={t(language, "emergency_title")} onBack={onBack} right={null} hideLanguageChip />
       <div className="px-4 mt-4">
         <div className="bg-white/10 rounded-2xl p-4 mb-5">
           <p className="text-sm text-red-50">
@@ -659,11 +695,11 @@ function WelcomeScreen({ existing, onSubmit }) {
   );
 }
 
-function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, setNotifyTarget, permission, onTest, onBack, profile, onEditProfile, language }) {
+function NotificationsScreen({ beaches, notifyEnabled, onToggle, notifyTarget, setNotifyTarget, permission, onTest, onBack, profile, onEditProfile, language, onOpenLanguage }) {
   const supported = permission !== "unsupported";
   return (
     <div className="pb-24">
-      <TopBar title={t(language, "settings_title")} onBack={onBack} />
+      <TopBar title={t(language, "settings_title")} onBack={onBack} language={language} onOpenLanguage={onOpenLanguage} />
       <div className="px-4 mt-4">
         <div className="bg-white rounded-2xl p-4 ring-1 ring-stone-100 flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -777,7 +813,7 @@ function AlertToast({ toast, onDismiss }) {
 /* ---- Root ---- */
 
 export default function TouristApp() {
-  const { beaches, alerts, liveByBeach, activeAlertsForBeach } = useBeachData();
+  const { beaches, alerts, liveByBeach, activeAlertsForBeach, liveTranscriptsForBeach } = useBeachData();
   const geo = useGeolocation();
   const [profile, setProfile] = useState(loadTouristProfile);
   const [screen, setScreen] = useState(() => (loadTouristProfile() ? "home" : "welcome"));
@@ -874,6 +910,7 @@ export default function TouristApp() {
           geo={geo}
           notifyEnabled={notifyEnabled}
           onOpenNotifications={() => goTo("notifications")}
+          onOpenLanguage={() => goTo("language")}
           onSelectBeach={(id) => goTo("detail", { beachId: id })}
         />
       )}
@@ -890,6 +927,7 @@ export default function TouristApp() {
           profile={profile}
           onEditProfile={() => goTo("welcome")}
           language={language}
+          onOpenLanguage={() => goTo("language")}
           onBack={() => goTo(previousScreen === "notifications" ? "home" : previousScreen)}
         />
       )}
@@ -901,6 +939,7 @@ export default function TouristApp() {
           onGoLive={() => goTo("live")}
           userLocation={geo.status === "granted" && geo.coords ? geo.coords : null}
           language={language}
+          onOpenLanguage={() => goTo("language")}
         />
       )}
 
@@ -908,9 +947,11 @@ export default function TouristApp() {
         <LiveBroadcastScreen
           beach={selectedBeach}
           alerts={selectedBeach ? activeAlertsForBeach(selectedBeach.id) : []}
+          transcripts={selectedBeach ? liveTranscriptsForBeach(selectedBeach.id) : []}
           isLive={!!(selectedBeach && liveByBeach[selectedBeach.id]?.isLive)}
           liveStartedAt={selectedBeach ? liveByBeach[selectedBeach.id]?.startedAt : null}
           language={language}
+          onOpenLanguage={() => goTo("language")}
           onBack={() => goTo(previousScreen === "live" ? "home" : previousScreen)}
         />
       )}

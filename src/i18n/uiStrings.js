@@ -98,7 +98,10 @@ export const UI_STRINGS = {
     "settings_beachOnly": "{beach} only",
     "emergency_yourBeachFallback": "your beach",
     "toast_beachFallback": "Beach",
-    "settings_testAlertBody": "This is a test alert — push notifications are working."
+    "settings_testAlertBody": "This is a test alert — push notifications are working.",
+    "live_english": "English",
+    "live_translating": "Translating...",
+    "live_voiceAnnouncement": "Live voice announcement"
   },
   "zh": {
     "nav_beaches": "海滩",
@@ -198,7 +201,10 @@ export const UI_STRINGS = {
     "settings_beachOnly": "仅 {beach}",
     "emergency_yourBeachFallback": "您所在的海滩",
     "toast_beachFallback": "海滩",
-    "settings_testAlertBody": "这是一条测试提醒——推送通知功能正常。"
+    "settings_testAlertBody": "这是一条测试提醒——推送通知功能正常。",
+    "live_english": "英文原文",
+    "live_translating": "翻译中...",
+    "live_voiceAnnouncement": "实时语音播报"
   },
   "ja": {
     "nav_beaches": "ビーチ",
@@ -298,7 +304,10 @@ export const UI_STRINGS = {
     "settings_beachOnly": "{beach}のみ",
     "emergency_yourBeachFallback": "現在のビーチ",
     "toast_beachFallback": "ビーチ",
-    "settings_testAlertBody": "これはテストアラートです — プッシュ通知は正常に機能しています。"
+    "settings_testAlertBody": "これはテストアラートです — プッシュ通知は正常に機能しています。",
+    "live_english": "英語原文",
+    "live_translating": "翻訳中...",
+    "live_voiceAnnouncement": "ライブ音声アナウンス"
   },
   "ko": {
     "nav_beaches": "해변",
@@ -398,7 +407,10 @@ export const UI_STRINGS = {
     "settings_beachOnly": "{beach}만",
     "emergency_yourBeachFallback": "현재 해변",
     "toast_beachFallback": "해변",
-    "settings_testAlertBody": "이것은 테스트 경보입니다 — 푸시 알림이 정상 작동 중입니다."
+    "settings_testAlertBody": "이것은 테스트 경보입니다 — 푸시 알림이 정상 작동 중입니다.",
+    "live_english": "영어 원문",
+    "live_translating": "번역 중...",
+    "live_voiceAnnouncement": "실시간 음성 안내"
   },
   "es": {
     "nav_beaches": "Playas",
@@ -498,7 +510,10 @@ export const UI_STRINGS = {
     "settings_beachOnly": "Solo {beach}",
     "emergency_yourBeachFallback": "tu playa",
     "toast_beachFallback": "Playa",
-    "settings_testAlertBody": "Esta es una alerta de prueba — las notificaciones push están funcionando."
+    "settings_testAlertBody": "Esta es una alerta de prueba — las notificaciones push están funcionando.",
+    "live_english": "Inglés original",
+    "live_translating": "Traduciendo...",
+    "live_voiceAnnouncement": "Anuncio de voz en vivo"
   },
   "fr": {
     "nav_beaches": "Plages",
@@ -598,7 +613,10 @@ export const UI_STRINGS = {
     "settings_beachOnly": "{beach} uniquement",
     "emergency_yourBeachFallback": "votre plage",
     "toast_beachFallback": "Plage",
-    "settings_testAlertBody": "Ceci est une alerte de test — les notifications push fonctionnent."
+    "settings_testAlertBody": "Ceci est une alerte de test — les notifications push fonctionnent.",
+    "live_english": "Anglais original",
+    "live_translating": "Traduction en cours...",
+    "live_voiceAnnouncement": "Annonce vocale en direct"
   },
   "de": {
     "nav_beaches": "Strände",
@@ -698,6 +716,9 @@ export const UI_STRINGS = {
     "settings_beachOnly": "Nur {beach}",
     "emergency_yourBeachFallback": "dein Strand",
     "toast_beachFallback": "Strand",
-    "settings_testAlertBody": "Dies ist eine Testwarnung — Push-Benachrichtigungen funktionieren."
+    "settings_testAlertBody": "Dies ist eine Testwarnung — Push-Benachrichtigungen funktionieren.",
+    "live_english": "Original auf Englisch",
+    "live_translating": "Übersetzung läuft...",
+    "live_voiceAnnouncement": "Live-Sprachdurchsage"
   }
 };

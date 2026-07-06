@@ -12,6 +12,8 @@ import {
 } from "../store/beachData";
 import BeachMap from "../components/BeachMap";
 import FlagIcon from "../components/FlagIcon";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { translateToAllLanguages } from "../i18n/liveTranslate";
 
 /* ============================================================================
    AdminApp now reads/writes the SAME state as TouristApp via useBeachData().
@@ -236,7 +238,7 @@ function BeachSelectScreen({ user, beaches, onPick, onLogout }) {
 
 /* ---- Control room ---- */
 
-function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, onPublish, onResolve, onToggleLive, onSetFlag, onUpdateMapFeatures, onSwitchBeach, onLogout }) {
+function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, onPublish, onResolve, onToggleLive, onSetFlag, onUpdateMapFeatures, onSwitchBeach, onLogout, transcripts, onAddTranscript, onSetTranscriptTranslation }) {
   const [tab, setTab] = useState("composer");
   const canSwitch = user.assignedBeachIds.length > 1;
 
@@ -286,7 +288,11 @@ function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, on
 
       <div className="flex-1 min-w-0">
         {tab === "composer" && (
-          <ComposerPanel beach={beach} activeAlerts={activeAlerts} live={live} onPublish={onPublish} onResolve={onResolve} onToggleLive={onToggleLive} onSetFlag={onSetFlag} />
+          <ComposerPanel
+            beach={beach} activeAlerts={activeAlerts} live={live} onPublish={onPublish} onResolve={onResolve}
+            onToggleLive={onToggleLive} onSetFlag={onSetFlag} actor={user.name}
+            transcripts={transcripts} onAddTranscript={onAddTranscript} onSetTranscriptTranslation={onSetTranscriptTranslation}
+          />
         )}
         {tab === "map" && (
           <BeachMapEditor beach={beach} onSave={(features, summary) => onUpdateMapFeatures(beach.id, features, summary)} />
@@ -300,12 +306,31 @@ function ControlRoom({ user, beach, allBeaches, auditLog, live, activeAlerts, on
 
 /* ---- Composer ---- */
 
-function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onToggleLive, onSetFlag }) {
+function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onToggleLive, onSetFlag, actor, transcripts, onAddTranscript, onSetTranscriptTranslation }) {
   const [presetKey, setPresetKey] = useState(null);
   const [text, setText] = useState("");
   const [severity, setSeverity] = useState("caution");
   const [expiryMin, setExpiryMin] = useState(60);
   const [confirmed, setConfirmed] = useState(false);
+
+  const speech = useSpeechRecognition({
+    onFinalResult: async (finalText) => {
+      const transcriptId = onAddTranscript(beach.id, finalText, actor);
+      const translations = await translateToAllLanguages(finalText);
+      Object.entries(translations).forEach(([lang, translatedText]) => {
+        onSetTranscriptTranslation(transcriptId, lang, translatedText);
+      });
+    },
+  });
+
+  function handleToggleVoiceBroadcast() {
+    if (speech.isListening) {
+      speech.stop();
+    } else {
+      if (!live?.isLive) onToggleLive(beach.id); // voice broadcast implies you're live
+      speech.start();
+    }
+  }
 
   function pickPreset(p) {
     setPresetKey(p.key);
@@ -345,6 +370,55 @@ function ComposerPanel({ beach, activeAlerts, live, onPublish, onResolve, onTogg
           <Radio className="w-4 h-4" /> ON AIR — broadcasting live since {fmtTime(live.startedAt)} · visible now in the tourist app
         </div>
       )}
+
+      <div className="bg-white rounded-2xl p-4 ring-1 ring-stone-200 mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400">Voice broadcast</p>
+          {speech.isListening && (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-red-600">
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" /> Listening
+            </span>
+          )}
+        </div>
+
+        {!speech.supported ? (
+          <p className="text-sm text-stone-500">Voice broadcast isn't supported in this browser. Try Chrome or Safari on this device.</p>
+        ) : (
+          <>
+            <button
+              onClick={handleToggleVoiceBroadcast}
+              className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 font-bold text-sm mb-2 ${speech.isListening ? "bg-red-600 text-white" : "bg-blue-800 text-white"}`}
+            >
+              <Mic className="w-5 h-5" /> {speech.isListening ? "Stop voice broadcast" : "Start voice broadcast"}
+            </button>
+            <p className="text-xs text-stone-400 mb-2">
+              Hold your phone near the speakerphone while you announce. Each sentence is transcribed and translated automatically for tourists in real time.
+            </p>
+
+            {speech.error && <p className="text-xs text-red-600 font-semibold mb-2">{speech.error}</p>}
+
+            {speech.isListening && speech.interimText && (
+              <p className="text-sm text-stone-500 italic mb-2">"{speech.interimText}"</p>
+            )}
+
+            {transcripts.length > 0 && (
+              <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto">
+                {transcripts.slice(0, 6).map((tItem) => {
+                  const translatedCount = Object.keys(tItem.translations).length;
+                  return (
+                    <div key={tItem.id} className="text-xs bg-stone-50 rounded-lg p-2">
+                      <p className="font-semibold text-stone-700">{tItem.textEn}</p>
+                      <p className="text-stone-400 mt-0.5">
+                        {translatedCount === 6 ? "Translated into all languages" : `Translating... ${translatedCount}/6 languages done`}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Flag status — set manually</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
@@ -728,7 +802,7 @@ function PublicViewPanel({ beach, activeAlerts, live }) {
 /* ---- Root ---- */
 
 export default function AdminApp() {
-  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, setBeachFlag, updateMapFeatures, activeAlertsForBeach, users, signUpLifesaver } = useBeachData();
+  const { beaches, auditLog, liveByBeach, publishAlert, resolveAlert, toggleLive, setBeachFlag, updateMapFeatures, activeAlertsForBeach, users, signUpLifesaver, addLiveTranscript, setTranscriptTranslation, liveTranscriptsForBeach } = useBeachData();
 
   const [screen, setScreen] = useState("login"); // login | signup | pin | beachSelect | room
   const [pendingUser, setPendingUser] = useState(null);
@@ -808,6 +882,9 @@ export default function AdminApp() {
           onToggleLive={(beachId) => toggleLive(beachId, user.name)}
           onUpdateMapFeatures={(beachId, features, summary) => updateMapFeatures(beachId, features, user.name, summary)}
           onSetFlag={(status) => setBeachFlag(currentBeach.id, status, user.name)}
+          transcripts={liveTranscriptsForBeach(currentBeach.id)}
+          onAddTranscript={addLiveTranscript}
+          onSetTranscriptTranslation={setTranscriptTranslation}
           onSwitchBeach={() => setScreen("beachSelect")}
           onLogout={logout}
         />
